@@ -37,6 +37,8 @@ I18N = {
         "nav_map": "マップ", "nav_feed": "フィード", "nav_add": "投稿",
         "nav_update": "追記", "nav_profile": "プロフィール",
         "hero_title": "たびログ", "hero_sub": "キラキラだけじゃない、リアルな旅の記録。<br>🟠 訪問済みの足跡　🔵 これからの旅 — ピンをタップすると「期待と現実」。",
+        "flt_my_visited": "🟠 行った", "flt_my_planned": "🔵 これから",
+        "flt_fr_visited": "💜 友達が行った", "flt_fr_planned": "🩷 友達のこれから",
         "stat_countries": "訪問した国", "stat_cities": "訪問した都市",
         "stat_spots": "行った場所", "stat_planned": "計画中の旅",
         "unit_countries": " か国", "unit_cities": " 都市", "unit_spots": " スポット", "unit_plans": " 件",
@@ -99,6 +101,8 @@ I18N = {
         "nav_map": "Map", "nav_feed": "Feed", "nav_add": "Post",
         "nav_update": "Reality", "nav_profile": "Profile",
         "hero_title": "TabiLog", "hero_sub": "Real travel memories, not just the highlight reel.<br>🟠 Footprints of visited places 🔵 Upcoming trips — tap a pin to see expectation vs reality.",
+        "flt_my_visited": "🟠 My visited", "flt_my_planned": "🔵 My upcoming",
+        "flt_fr_visited": "💜 Friends visited", "flt_fr_planned": "🩷 Friends upcoming",
         "stat_countries": "Countries visited", "stat_cities": "Cities visited",
         "stat_spots": "Places visited", "stat_planned": "Planned trips",
         "unit_countries": "", "unit_cities": "", "unit_spots": "", "unit_plans": "",
@@ -445,10 +449,12 @@ def page_header(icon, title, sub=""):
     </div>""", unsafe_allow_html=True)
 
 
-def popup_html(t):
+def popup_html(t, owner_name=None):
     reality = t["reality"] or "—"
+    owner_line = f'<p style="margin:0 0 4px; font-size:12px; font-weight:bold; color:#805ad5;">👤 {owner_name}</p>' if owner_name else ""
     return f"""
     <div style="font-family:sans-serif; width:260px;">
+      {owner_line}
       <h4 style="margin:0 0 4px;">{'✅' if t['status']=='visited' else '🗓️'} {t['place']}</h4>
       <p style="margin:0 0 6px; color:#888; font-size:12px;">{country_label(t['country'])}・{t['city']}｜{t['visit_date']}</p>
       <p style="margin:0; font-size:12px;"><b style="color:#2b6cb0;">{tr('expectation')}</b><br>{t['expectation']}</p>
@@ -457,26 +463,43 @@ def popup_html(t):
     </div>"""
 
 
-def build_map(trips, height=440):
+# カテゴリ → (ピンの色, アイコン)：Flighty風に自分と友達で色を分ける
+PIN_STYLE = {
+    "my_visited": ("orange", "camera"),
+    "my_planned": ("blue", "calendar"),
+    "fr_visited": ("purple", "camera"),
+    "fr_planned": ("pink", "calendar"),
+}
+
+
+def build_map(entries, height=440):
+    """entries: (trip, category, owner_name) のリスト"""
     m = folium.Map(location=[25, 20], zoom_start=1, tiles="CartoDB positron")
-    visited_countries = {COUNTRIES.get(t["country"]) for t in trips if t["status"] == "visited"}
-    visited_countries.discard(None)
     geo = load_world_geojson()
-    if geo and visited_countries:
-        feats = [f for f in geo["features"] if f["properties"]["name"] in visited_countries]
-        folium.GeoJson(
-            {"type": "FeatureCollection", "features": feats},
-            style_function=lambda f: {"fillColor": "#f6ad55", "color": "#dd6b20",
-                                      "weight": 1, "fillOpacity": 0.35},
-        ).add_to(m)
-    for t in trips:
-        visited = t["status"] == "visited"
+
+    def paint(countries, fill, line):
+        names = {COUNTRIES.get(c) for c in countries}
+        names.discard(None)
+        if geo and names:
+            feats = [f for f in geo["features"] if f["properties"]["name"] in names]
+            folium.GeoJson(
+                {"type": "FeatureCollection", "features": feats},
+                style_function=lambda f, fill=fill, line=line: {
+                    "fillColor": fill, "color": line, "weight": 1, "fillOpacity": 0.3},
+            ).add_to(m)
+
+    # 足跡：自分はオレンジ、友達はパープルで塗る（自分を上に重ねる）
+    paint({t["country"] for t, cat, _ in entries if cat == "fr_visited"}, "#b794f4", "#805ad5")
+    paint({t["country"] for t, cat, _ in entries if cat == "my_visited"}, "#f6ad55", "#dd6b20")
+
+    for t, cat, owner_name in entries:
+        color, icon = PIN_STYLE[cat]
+        mine = cat.startswith("my_")
         folium.Marker(
             [t["lat"], t["lon"]],
-            tooltip=t["place"],
-            popup=folium.Popup(popup_html(t), max_width=300),
-            icon=folium.Icon(color="orange" if visited else "blue",
-                             icon="camera" if visited else "calendar", prefix="fa"),
+            tooltip=t["place"] if mine else f"{t['place']}（{owner_name}）",
+            popup=folium.Popup(popup_html(t, None if mine else owner_name), max_width=300),
+            icon=folium.Icon(color=color, icon=icon, prefix="fa"),
         ).add_to(m)
     return st_folium(m, height=height, use_container_width=True,
                      returned_objects=[], key="home_map")
@@ -559,7 +582,29 @@ if page == "map":
     st.markdown('<div class="stats">' + "".join(
         f'<div class="stat"><div class="ico">{i}</div><div class="val">{v}</div><div class="lab">{l}</div></div>'
         for i, v, l in stats) + '</div>', unsafe_allow_html=True)
-    build_map(trips)
+
+    # Flighty風フィルタ：自分/友達 × 行った/これから
+    MAP_FILTERS = ["my_visited", "my_planned", "fr_visited", "fr_planned"]
+    active = st.pills("map_filter", MAP_FILTERS, selection_mode="multi",
+                      default=MAP_FILTERS, format_func=lambda k: tr(f"flt_{k}"),
+                      label_visibility="collapsed")
+
+    entries = []
+    for t in trips:
+        cat = "my_visited" if t["status"] == "visited" else "my_planned"
+        if cat in active:
+            entries.append((t, cat, ME.get("name", USER_ID)))
+    for fid in ME.get("friends", []):
+        owner = USERS.get(fid)
+        if not owner:
+            continue
+        for t in load_trips(fid):
+            if effective_visibility(t, owner) not in ("friends", "public"):
+                continue
+            cat = "fr_visited" if t["status"] == "visited" else "fr_planned"
+            if cat in active:
+                entries.append((t, cat, owner.get("name", fid)))
+    build_map(entries)
 
 # ---------- フィード ----------
 elif page == "feed":
