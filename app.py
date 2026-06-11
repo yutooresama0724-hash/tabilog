@@ -106,6 +106,17 @@ I18N = {
         "baton_from": "さんからのおすすめ", "baton_added": "計画に追加しました！",
         "search_place": "🔍 場所名で検索（例：Sagrada Familia）", "search_btn": "検索",
         "geocode_err": "見つかりませんでした。表記を変えて試してください", "geocode_ok": "📍 見つけました：",
+        "delete": "🗑 削除",
+        "confirm_del": "この投稿を完全に削除します（元に戻せません）",
+        "confirm_del_btn": "完全に削除する",
+        "tut_title": "ようこそ、たびログへ！",
+        "tut_sub": "「期待と現実」を記録する、3ステップの旅ノート",
+        "tut_1": "<b>➕ 投稿</b>：旅の前に「期待していること」を登録（地図クリックか場所名検索で場所を選択）",
+        "tut_2": "<b>🛬 追記</b>：帰ってきたら「実際どうだったか」・写真・評価を記録",
+        "tut_3": "<b>👤 フレンド</b>：友達を追加すると、お互いの旅がマップとフィードに表示",
+        "tut_example": "📝 記入例（エッフェル塔）",
+        "tut_exp": "🌈 期待：映画みたいなロマンチックな夜景。シャンパン片手に最高の写真が撮れるはず！",
+        "tut_real": "📷 現実：夜景は本当に綺麗だった。ただし行列は90分、スリ注意の放送が常に流れていて気が抜けない。それでも点灯の瞬間は鳥肌もの。",
         "rem_soon": "🛫 もうすぐ「{place}」（{date}）！出発前に期待を見返そう",
         "rem_overdue": "🛬 「{place}」から帰ってきた？🛬 追記から現実を記録しよう",
         "timelapse": "⏪ 足跡タイムラプス（日付までの足跡を表示）",
@@ -198,6 +209,17 @@ I18N = {
         "baton_from": "recommends", "baton_added": "Added to your plans!",
         "search_place": "🔍 Search by place name (e.g. Sagrada Familia)", "search_btn": "Search",
         "geocode_err": "Not found. Try a different spelling", "geocode_ok": "📍 Found: ",
+        "delete": "🗑 Delete",
+        "confirm_del": "This will permanently delete the post (can't be undone)",
+        "confirm_del_btn": "Delete permanently",
+        "tut_title": "Welcome to TabiLog!",
+        "tut_sub": "A 3-step journal for expectations & reality",
+        "tut_1": "<b>➕ Post</b>: before a trip, write down what you expect (pick the spot by clicking the map or searching)",
+        "tut_2": "<b>🛬 Reality</b>: after the trip, record how it really was, with photos and ratings",
+        "tut_3": "<b>👤 Friends</b>: add friends and see each other's trips on the map and feed",
+        "tut_example": "📝 Example (Eiffel Tower)",
+        "tut_exp": "🌈 Expectation: a movie-like romantic night view. The perfect photo with champagne in hand!",
+        "tut_real": "📷 Reality: the night view really was beautiful. But the queue was 90 minutes and pickpocket warnings played non-stop. Still, the moment it lit up gave me goosebumps.",
         "rem_soon": "🛫 \"{place}\" is coming up ({date})! Reread your expectations",
         "rem_overdue": "🛬 Back from \"{place}\"? Record the reality from 🛬",
         "timelapse": "⏪ Footprint timelapse (show footprints up to a date)",
@@ -306,6 +328,7 @@ html, body, [class*="st-"] { font-family: 'Noto Sans JP', sans-serif; }
   [data-testid="stMainBlockContainer"] { padding: 1.5rem .9rem 7rem; }
   .st-key-bottomnav [data-testid="stColumn"],
   [class*="st-key-rxrow_"] [data-testid="stColumn"],
+  [class*="st-key-ctlrow_"] [data-testid="stColumn"],
   [class*="st-key-frow_"] [data-testid="stColumn"] { flex: 1 1 0 !important; min-width: 0 !important; width: auto !important; }
   [class*="st-key-rxrow_"] [data-testid="stColumn"] { flex: 0 0 auto !important; }
 }
@@ -460,30 +483,6 @@ def toggle_reaction(owner_uid, trip_id, key, me_uid):
     save_trips(owner_uid, tl)
 
 
-def _sample_trips():
-    base = TRIP_DEFAULTS
-    def mk(**kw):
-        d = {**{k: (dict(v) if isinstance(v, dict) else (list(v) if isinstance(v, list) else v))
-                for k, v in base.items()}, **kw}
-        return d
-    return [
-        mk(id=str(uuid.uuid4()), place="エッフェル塔", country="フランス", city="パリ",
-           lat=48.8584, lon=2.2945, visit_date="2025-10-12",
-           expectation="映画みたいなロマンチックな夜景。シャンパン片手に最高の写真が撮れるはず！",
-           reality="夜景は本当に綺麗だった。ただし行列は90分、スリ注意の放送が常に流れていて気が抜けない。芝生は立入禁止だった。それでも点灯の瞬間は鳥肌もの。",
-           rating=4, photo_rating=5, gap="even", photos=[], status="visited"),
-        mk(id=str(uuid.uuid4()), place="カオサン通り", country="タイ", city="バンコク",
-           lat=13.7590, lon=100.4977, visit_date="2026-01-05",
-           expectation="バックパッカーの聖地で安くて美味い屋台メシ三昧。世界中の旅人と仲良くなる。",
-           reality="想像の3倍うるさくて3倍楽しい。パッタイは60バーツで絶品。ただし観光地化が進んでいて『聖地』感は薄め。虫の素揚げは話のネタに一口で十分。",
-           rating=5, photo_rating=3, gap="up", photos=[], status="visited", visibility="public"),
-        mk(id=str(uuid.uuid4()), place="マチュピチュ", country="ペルー", city="クスコ",
-           lat=-13.1631, lon=-72.5450, visit_date="2026-09-20",
-           expectation="雲海に浮かぶ天空都市を朝イチで独り占めしたい。高山病が少し心配。",
-           reality="", rating=0, photos=[], status="planned"),
-    ]
-
-
 # ---------------------------------------------------------------- ログイン画面
 def auth_gate():
     lang_label = st.selectbox(tr("language"), ["日本語", "English"],
@@ -536,7 +535,7 @@ def auth_gate():
                                   **{k: (list(v) if isinstance(v, list) else v)
                                      for k, v in USER_DEFAULTS.items() if k != "lang"}}
                     save_users(users)
-                    save_trips(uid, _sample_trips())
+                    save_trips(uid, [])
                     st.session_state.user = uid
                     st.rerun()
 
@@ -728,7 +727,22 @@ def feed_card(t, owner_uid, owner, show_visibility=False):
                                 unsafe_allow_html=True)
                     st.caption(o_t["reality"] or "—")
 
-        reaction_row(t, owner_uid)
+        if owner_uid == USER_ID:
+            ctl = st.container(key=f"ctlrow_{t['id']}")
+            rx_col, del_col = ctl.columns([4, 1])
+            with rx_col:
+                reaction_row(t, owner_uid)
+            with del_col:
+                with st.popover(tr("delete")):
+                    st.caption(tr("confirm_del"))
+                    if st.button(tr("confirm_del_btn"), key=f"del_{t['id']}", type="primary",
+                                 use_container_width=True):
+                        st.session_state.trips = [x for x in st.session_state.trips
+                                                  if x["id"] != t["id"]]
+                        persist()
+                        st.rerun()
+        else:
+            reaction_row(t, owner_uid)
 
 
 VIS_OPTIONS = ["default", "post_public", "friends_only"]
@@ -757,6 +771,23 @@ if page == "map":
       <div class="hero-title">{tr('hero_title')}</div>
       <div class="hero-sub">{tr('hero_sub')}</div>
     </div>""", unsafe_allow_html=True)
+
+    # 初回チュートリアル（まだ投稿がないとき）
+    if not trips:
+        st.markdown(f"""
+        <div style="background: rgba(150,160,200,.08); border: 1px solid rgba(150,160,200,.18);
+                    border-radius: 20px; padding: 1.3rem 1.4rem; margin-bottom: 1.1rem;">
+          <div style="font-family:'Zen Maru Gothic',sans-serif; font-weight:900; font-size:1.25rem;">
+            👋 {tr('tut_title')}</div>
+          <div style="font-size:.82rem; opacity:.65; margin-bottom:.8rem;">{tr('tut_sub')}</div>
+          <ol style="font-size:.88rem; line-height:1.9; padding-left:1.2rem; margin:0;">
+            <li>{tr('tut_1')}</li><li>{tr('tut_2')}</li><li>{tr('tut_3')}</li>
+          </ol>
+          <div style="margin-top:.9rem; padding:.8rem 1rem; border-radius:14px;
+                      background: rgba(143,94,255,.1); border:1px solid rgba(143,94,255,.25); font-size:.82rem;">
+            <b>{tr('tut_example')}</b><br>{tr('tut_exp')}<br>{tr('tut_real')}
+          </div>
+        </div>""", unsafe_allow_html=True)
 
     # 旅程リマインド
     today = date.today()
