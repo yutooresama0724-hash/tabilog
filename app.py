@@ -3,6 +3,7 @@
 import base64
 import hashlib
 import json
+import math
 import os
 import uuid
 from datetime import date
@@ -51,7 +52,7 @@ I18N = {
         "chip_visited": "✅ 訪問済み", "chip_planned": "🗓️ 計画中",
         "vis_public_chip": "🌐 全体公開", "vis_friends_chip": "👥 友達のみ",
         "add_title": "新しい旅を登録", "add_sub": "出発前に「期待していること」を書き残しましょう。",
-        "pick_map": "📍 地図をクリックして場所を選択",
+        "pick_map": "📍 地図をクリックするか、場所名で検索",
         "picked": "選択中の座標", "pick_info": "地図をクリックするとピンの位置が決まります",
         "place": "場所名 *", "place_ph": "例：サグラダ・ファミリア",
         "country": "国 *", "country_ph": "国を選択", "city": "都市 *", "city_ph": "例：バルセロナ",
@@ -67,11 +68,14 @@ I18N = {
         "upd_none": "追記できる「計画中の旅」がありません。まずは ➕ から旅を登録してください。",
         "upd_which": "どの旅に追記しますか？", "upd_past": "あの時の期待",
         "upd_reality": "📷 実際どうだった？ *", "upd_reality_ph": "良かったことも、ガッカリしたことも、正直に。",
-        "rating": "総合評価", "photos": "写真をアップロード",
+        "rating_photo": "📸 写真映え", "rating_again": "🔁 もう一度行きたい度",
+        "photos": "写真をアップロード",
         "save_reality": "現実を記録する", "err_reality": "「実際どうだったか」を入力してください",
         "updated": "の現実を記録しました。おかえりなさい 🏠",
-        "tab_posts": "📊 記録", "tab_friends": "👥 フレンド", "tab_settings": "⚙️ 設定",
+        "tab_posts": "📊 記録", "tab_friends": "👥 フレンド", "tab_wrapped": "✨ 振り返り", "tab_settings": "⚙️ 設定",
         "stat_posts": "投稿", "stat_c": "国", "stat_ci": "都市", "stat_p": "計画中",
+        "stat_gap": "期待超え率", "stat_dist": "総移動距離",
+        "earth_laps": "地球 {laps} 周分",
         "memories": "🖼️ 思い出グリッド",
         "no_photos": "写真はまだありません。🛬 追記から写真をアップロードすると、ここに並びます。",
         "logout": "ログアウト",
@@ -83,7 +87,32 @@ I18N = {
         "friends_list": "フレンド一覧", "remove": "解除", "no_friends": "まだフレンドがいません。ユーザーIDで検索して申請しましょう。",
         "avatar": "プロフィールアイコン", "avatar_upload": "画像をアップロード（正方形がおすすめ）",
         "default_vis": "投稿のデフォルト公開範囲", "save_settings": "設定を保存", "saved": "設定を保存しました",
-        "by": "さん",
+        # --- 新機能 ---
+        "gap_label": "🎯 期待と比べてどうだった？",
+        "gap_up": "🚀 期待を超えた", "gap_even": "🙂 期待通り", "gap_down": "📉 期待以下",
+        "capsule": "⏳ タイムカプセルにする（現実を書くまで期待を自分でもロック）",
+        "capsule_locked": "🔒 タイムカプセル封印中 — 現実を記録すると開封されます",
+        "capsule_open": "🎉 タイムカプセル開封！あの時の期待：",
+        "others_reality": "👀 みんなの現実（同じあたりに行った人）",
+        "no_others": "近くの公開された「現実」はまだありません",
+        "companions": "👥 一緒に行った友達",
+        "with_label": "と一緒",
+        "rx_nice": "期待通りで何より", "rx_lol": "現実は厳しい", "rx_helpful": "参考になった",
+        "baton_title": "🎁 旅のバトン（おすすめを送る）",
+        "baton_to": "送る相手", "baton_place": "おすすめの場所", "baton_note": "おすすめポイント",
+        "baton_send": "バトンを送る", "baton_sent": "バトンを送りました！",
+        "baton_geo_err": "場所が見つかりませんでした。表記を変えて試してください",
+        "baton_in": "🎁 届いた旅のバトン", "baton_accept": "計画に追加", "baton_decline": "見送る",
+        "baton_from": "さんからのおすすめ", "baton_added": "計画に追加しました！",
+        "search_place": "🔍 場所名で検索（例：Sagrada Familia）", "search_btn": "検索",
+        "geocode_err": "見つかりませんでした。表記を変えて試してください", "geocode_ok": "📍 見つけました：",
+        "rem_soon": "🛫 もうすぐ「{place}」（{date}）！出発前に期待を見返そう",
+        "rem_overdue": "🛬 「{place}」から帰ってきた？🛬 追記から現実を記録しよう",
+        "timelapse": "⏪ 足跡タイムラプス（日付までの足跡を表示）",
+        "wrapped_year": "振り返る年", "wrapped_none": "この年の訪問記録はまだありません",
+        "w_countries": "か国", "w_cities": "都市", "w_spots": "スポット",
+        "w_gap": "期待超え率", "w_dist": "移動距離", "w_best": "今年のベスト",
+        "w_title": "{year}年のあなたの旅",
     },
     "en": {
         "tagline": "A travel journal for expectations & reality",
@@ -115,7 +144,7 @@ I18N = {
         "chip_visited": "✅ Visited", "chip_planned": "🗓️ Planned",
         "vis_public_chip": "🌐 Public", "vis_friends_chip": "👥 Friends only",
         "add_title": "Add a new trip", "add_sub": "Write down your expectations before you go.",
-        "pick_map": "📍 Click the map to choose a location",
+        "pick_map": "📍 Click the map or search by name",
         "picked": "Selected coordinates", "pick_info": "Click the map to place the pin",
         "place": "Place *", "place_ph": "e.g. Sagrada Família",
         "country": "Country *", "country_ph": "Select a country", "city": "City *", "city_ph": "e.g. Barcelona",
@@ -131,11 +160,14 @@ I18N = {
         "upd_none": "No planned trips to update. Add one from ➕ first.",
         "upd_which": "Which trip do you want to update?", "upd_past": "Your expectation back then",
         "upd_reality": "📷 How was it really? *", "upd_reality_ph": "The good and the disappointing — be honest.",
-        "rating": "Overall rating", "photos": "Upload photos",
+        "rating_photo": "📸 Photogenic", "rating_again": "🔁 Would go again",
+        "photos": "Upload photos",
         "save_reality": "Save the reality", "err_reality": "Please write how it actually was",
         "updated": " updated. Welcome home 🏠",
-        "tab_posts": "📊 Posts", "tab_friends": "👥 Friends", "tab_settings": "⚙️ Settings",
+        "tab_posts": "📊 Posts", "tab_friends": "👥 Friends", "tab_wrapped": "✨ Wrapped", "tab_settings": "⚙️ Settings",
         "stat_posts": "Posts", "stat_c": "Countries", "stat_ci": "Cities", "stat_p": "Planned",
+        "stat_gap": "Beat expectations", "stat_dist": "Distance traveled",
+        "earth_laps": "{laps} laps around Earth",
         "memories": "🖼️ Memory grid",
         "no_photos": "No photos yet. Upload some from 🛬 and they'll appear here.",
         "logout": "Log out",
@@ -147,7 +179,32 @@ I18N = {
         "friends_list": "Friends", "remove": "Remove", "no_friends": "No friends yet. Search by user ID and send a request.",
         "avatar": "Profile icon", "avatar_upload": "Upload an image (square works best)",
         "default_vis": "Default post visibility", "save_settings": "Save settings", "saved": "Settings saved",
-        "by": "",
+        # --- new features ---
+        "gap_label": "🎯 Compared to your expectations?",
+        "gap_up": "🚀 Exceeded them", "gap_even": "🙂 As expected", "gap_down": "📉 Fell short",
+        "capsule": "⏳ Time capsule (lock the expectation until you write the reality)",
+        "capsule_locked": "🔒 Time capsule sealed — it opens when you record the reality",
+        "capsule_open": "🎉 Time capsule opened! Your expectation back then:",
+        "others_reality": "👀 Realities from people who went nearby",
+        "no_others": "No public realities near here yet",
+        "companions": "👥 Friends you went with",
+        "with_label": "with",
+        "rx_nice": "Glad it went as hoped", "rx_lol": "Reality is brutal", "rx_helpful": "Helpful",
+        "baton_title": "🎁 Trip baton (recommend a place)",
+        "baton_to": "Send to", "baton_place": "Place to recommend", "baton_note": "Why you recommend it",
+        "baton_send": "Send the baton", "baton_sent": "Baton sent!",
+        "baton_geo_err": "Couldn't find that place. Try a different spelling",
+        "baton_in": "🎁 Trip batons you received", "baton_accept": "Add to my plans", "baton_decline": "Pass",
+        "baton_from": "recommends", "baton_added": "Added to your plans!",
+        "search_place": "🔍 Search by place name (e.g. Sagrada Familia)", "search_btn": "Search",
+        "geocode_err": "Not found. Try a different spelling", "geocode_ok": "📍 Found: ",
+        "rem_soon": "🛫 \"{place}\" is coming up ({date})! Reread your expectations",
+        "rem_overdue": "🛬 Back from \"{place}\"? Record the reality from 🛬",
+        "timelapse": "⏪ Footprint timelapse (show footprints up to a date)",
+        "wrapped_year": "Year to look back on", "wrapped_none": "No visits recorded for this year yet",
+        "w_countries": "countries", "w_cities": "cities", "w_spots": "spots",
+        "w_gap": "beat expectations", "w_dist": "traveled", "w_best": "Best of the year",
+        "w_title": "Your {year} in travel",
     },
 }
 
@@ -169,17 +226,8 @@ html, body, [class*="st-"] { font-family: 'Noto Sans JP', sans-serif; }
 [data-testid="stSidebar"], [data-testid="stSidebarCollapsedControl"] { display: none; }
 [data-testid="stMainBlockContainer"] { max-width: 640px; padding: 2.2rem 1rem 7rem; }
 
-.logo-grad {
-  font-family: 'Zen Maru Gothic', sans-serif; font-weight: 900;
-  background: linear-gradient(135deg, #ffb46a, #ff5e7e, #a07bff);
-  -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
-}
-.hero {
-  position: relative; overflow: hidden;
-  background: linear-gradient(135deg, #ff9a5a 0%, #ff5e7e 45%, #8f5eff 100%);
-  border-radius: 24px; padding: 1.7rem 1.5rem 1.5rem; margin-bottom: 1.2rem; color: #fff;
-  box-shadow: 0 12px 36px rgba(255, 94, 126, .25);
-}
+.logo-grad { font-family: 'Zen Maru Gothic', sans-serif; font-weight: 900; background: linear-gradient(135deg, #ffb46a, #ff5e7e, #a07bff); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+.hero { position: relative; overflow: hidden; background: linear-gradient(135deg, #ff9a5a 0%, #ff5e7e 45%, #8f5eff 100%); border-radius: 24px; padding: 1.7rem 1.5rem 1.5rem; margin-bottom: 1.2rem; color: #fff; box-shadow: 0 12px 36px rgba(255, 94, 126, .25); }
 .hero::after { content: "✈️"; position: absolute; right: 1rem; top: .8rem; font-size: 3.4rem; opacity: .25; transform: rotate(-12deg); }
 .hero-eyebrow { font-size: .72rem; font-weight: 700; letter-spacing: .35em; text-transform: uppercase; opacity: .85; }
 .hero-title { font-family: 'Zen Maru Gothic', sans-serif; font-weight: 900; font-size: 2rem; line-height: 1.15; letter-spacing: .06em; text-shadow: 0 2px 10px rgba(0,0,0,.15); }
@@ -191,6 +239,7 @@ html, body, [class*="st-"] { font-family: 'Noto Sans JP', sans-serif; }
 .page-head .s { font-size: .82rem; opacity: .65; margin-top: .15rem; }
 
 .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: .7rem; margin-bottom: 1.1rem; }
+.stats.six { grid-template-columns: repeat(3, 1fr); }
 .stat { background: rgba(150, 160, 200, .08); border: 1px solid rgba(150, 160, 200, .18); border-radius: 18px; padding: .85rem .9rem; }
 .stat .ico { font-size: 1.15rem; }
 .stat .val { font-family: 'Zen Maru Gothic', sans-serif; font-weight: 900; font-size: 1.55rem; line-height: 1.25; background: linear-gradient(135deg, #ffb46a, #ff5e7e, #a07bff); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
@@ -201,9 +250,12 @@ html, body, [class*="st-"] { font-family: 'Noto Sans JP', sans-serif; }
 .chip-plan { background: rgba(99, 179, 237, .15); color: #63b3ed; border: 1px solid rgba(99,179,237,.35); }
 .chip-pub  { background: rgba(246, 173, 85, .15); color: #f6ad55; border: 1px solid rgba(246,173,85,.35); }
 .chip-frd  { background: rgba(160, 123, 255, .15); color: #b794f4; border: 1px solid rgba(160,123,255,.35); }
+.chip-gap-up   { background: rgba(72, 187, 120, .15); color: #68d391; border: 1px solid rgba(72,187,120,.35); }
+.chip-gap-even { background: rgba(160, 174, 192, .15); color: #cbd5e0; border: 1px solid rgba(160,174,192,.35); }
+.chip-gap-down { background: rgba(245, 101, 101, .15); color: #fc8181; border: 1px solid rgba(245,101,101,.35); }
 .trip-title { font-family: 'Zen Maru Gothic', sans-serif; font-weight: 900; font-size: 1.35rem; letter-spacing: .03em; line-height: 1.3; margin: 0; }
 .trip-meta { font-size: .8rem; opacity: .75; margin-top: .15rem; }
-.trip-stars { text-align: right; font-size: 1.35rem; color: #f6ad55; letter-spacing: .1em; white-space: nowrap; }
+.trip-stars { text-align: right; font-size: .95rem; color: #f6ad55; letter-spacing: .08em; white-space: nowrap; line-height: 1.6; }
 
 .av { border-radius: 50%; flex: none; display: flex; align-items: center; justify-content: center; font-weight: 900; color: #fff; background: linear-gradient(135deg, #ff9a5a, #ff5e7e, #8f5eff); overflow: hidden; }
 .av img { width: 100%; height: 100%; object-fit: cover; }
@@ -219,12 +271,27 @@ html, body, [class*="st-"] { font-family: 'Noto Sans JP', sans-serif; }
 .friend-row { display: flex; align-items: center; gap: .6rem; }
 .friend-row .av { width: 40px; height: 40px; font-size: 1.05rem; }
 
+/* ---- Wrapped カード ---- */
+.wrapped { background: linear-gradient(160deg, #2d1b4e 0%, #8f5eff 55%, #ff5e7e 100%); border-radius: 26px; padding: 1.8rem 1.6rem; color: #fff; margin: .6rem 0 1rem; box-shadow: 0 14px 40px rgba(143, 94, 255, .35); }
+.wrapped .wt { font-family: 'Zen Maru Gothic', sans-serif; font-weight: 900; font-size: 1.4rem; letter-spacing: .05em; margin-bottom: 1rem; }
+.wrapped .grid { display: grid; grid-template-columns: 1fr 1fr; gap: .9rem; }
+.wrapped .cell .v { font-family: 'Zen Maru Gothic', sans-serif; font-weight: 900; font-size: 1.9rem; line-height: 1.1; }
+.wrapped .cell .k { font-size: .75rem; opacity: .8; }
+.wrapped .best { margin-top: 1.1rem; padding-top: .9rem; border-top: 1px solid rgba(255,255,255,.25); font-size: .9rem; }
+.wrapped .best b { font-family: 'Zen Maru Gothic', sans-serif; font-size: 1.1rem; }
+.wrapped .logo { margin-top: 1rem; font-size: .7rem; letter-spacing: .3em; opacity: .7; text-transform: uppercase; }
+
 .st-key-bottomnav { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: min(100vw, 640px); z-index: 999; background: rgba(14, 17, 23, .94); backdrop-filter: blur(14px); border: 1px solid rgba(150, 160, 200, .18); border-bottom: none; border-radius: 20px 20px 0 0; padding: .3rem .5rem calc(.4rem + env(safe-area-inset-bottom)); }
 .st-key-bottomnav [data-testid="stHorizontalBlock"] { flex-wrap: nowrap !important; gap: .3rem; }
 .st-key-bottomnav [data-testid="stColumn"] { flex: 1 1 0 !important; min-width: 0 !important; width: auto !important; }
 .st-key-bottomnav button { background: transparent !important; border: none !important; padding: .25rem 0 !important; min-height: 2.6rem; }
 .st-key-bottomnav button p { font-size: 1.45rem !important; line-height: 1; }
 .st-key-bottomnav button[kind="primary"] { background: linear-gradient(135deg, rgba(255,154,90,.22), rgba(143,94,255,.22)) !important; border-radius: 14px !important; }
+
+/* リアクションボタンを小さく */
+[class*="st-key-rxrow_"] button { padding: .1rem .4rem !important; min-height: 1.9rem; font-size: .8rem; border-radius: 999px !important; }
+[class*="st-key-rxrow_"] [data-testid="stHorizontalBlock"] { flex-wrap: nowrap !important; gap: .3rem; }
+[class*="st-key-rxrow_"] [data-testid="stColumn"] { flex: 0 0 auto !important; min-width: 0 !important; width: auto !important; }
 
 .login-logo { text-align: center; margin: 1.2rem 0 .2rem; }
 .login-logo .big { font-size: 2.8rem; letter-spacing: .1em; }
@@ -234,11 +301,13 @@ html, body, [class*="st-"] { font-family: 'Noto Sans JP', sans-serif; }
   [data-testid="stHorizontalBlock"] { flex-wrap: wrap; }
   [data-testid="stHorizontalBlock"] > [data-testid="stColumn"] { flex: 1 1 100%; width: 100%; min-width: 100%; }
   .stats { grid-template-columns: repeat(2, 1fr); }
+  .stats.six { grid-template-columns: repeat(2, 1fr); }
   .hero-title { font-size: 1.7rem; }
   [data-testid="stMainBlockContainer"] { padding: 1.5rem .9rem 7rem; }
-  /* フレンド行・フィルタなど小さい行は横並びを維持 */
   .st-key-bottomnav [data-testid="stColumn"],
+  [class*="st-key-rxrow_"] [data-testid="stColumn"],
   [class*="st-key-frow_"] [data-testid="stColumn"] { flex: 1 1 0 !important; min-width: 0 !important; width: auto !important; }
+  [class*="st-key-rxrow_"] [data-testid="stColumn"] { flex: 0 0 auto !important; }
 }
 </style>
 """, unsafe_allow_html=True)
@@ -274,9 +343,32 @@ def load_world_geojson():
         return None
 
 
+@st.cache_data(show_spinner=False)
+def geocode(query):
+    """Nominatimで場所名→座標。(lat, lon, 表示名) か None"""
+    try:
+        r = requests.get("https://nominatim.openstreetmap.org/search",
+                         params={"q": query, "format": "json", "limit": 1},
+                         headers={"User-Agent": "tabilog-prototype"}, timeout=10)
+        d = r.json()
+        if d:
+            return float(d[0]["lat"]), float(d[0]["lon"]), d[0]["display_name"]
+    except Exception:
+        pass
+    return None
+
+
+def haversine_km(a_lat, a_lon, b_lat, b_lon):
+    rl1, rl2 = math.radians(a_lat), math.radians(b_lat)
+    dlat = math.radians(b_lat - a_lat)
+    dlon = math.radians(b_lon - a_lon)
+    h = math.sin(dlat / 2) ** 2 + math.cos(rl1) * math.cos(rl2) * math.sin(dlon / 2) ** 2
+    return 6371 * 2 * math.asin(math.sqrt(h))
+
+
 # ---------------------------------------------------------------- ユーザー管理
 USER_DEFAULTS = {"avatar": None, "friends": [], "requests_in": [],
-                 "default_visibility": "friends", "lang": "ja"}
+                 "default_visibility": "friends", "lang": "ja", "suggestions": []}
 
 
 def load_users():
@@ -306,6 +398,10 @@ def avatar_html(user, name):
 
 
 # ---------------------------------------------------------------- 旅データ
+TRIP_DEFAULTS = {"visibility": "default", "gap": None, "photo_rating": 0,
+                 "capsule": False, "companions": [], "reactions": {}}
+
+
 def trips_file(username):
     return os.path.join(DATA_DIR, f"trips_{username}.json")
 
@@ -318,7 +414,8 @@ def load_trips(username):
         trips = json.load(f)
     for t in trips:
         t["photos"] = [base64.b64decode(p) for p in t.get("photos", [])]
-        t.setdefault("visibility", "default")
+        for k, v in TRIP_DEFAULTS.items():
+            t.setdefault(k, dict(v) if isinstance(v, dict) else (list(v) if isinstance(v, list) else v))
     return trips
 
 
@@ -337,28 +434,53 @@ def effective_visibility(trip, owner):
     return owner.get("default_visibility", "friends") if v == "default" else v
 
 
+def can_see(trip, owner_uid, owner, viewer_uid, viewer):
+    if owner_uid == viewer_uid:
+        return True
+    vis = effective_visibility(trip, owner)
+    if vis == "public":
+        return True
+    return owner_uid in viewer.get("friends", [])
+
+
+def toggle_reaction(owner_uid, trip_id, key, me_uid):
+    """投稿へのリアクションをトグルして保存"""
+    if owner_uid == st.session_state.user:
+        tl = st.session_state.trips
+    else:
+        tl = load_trips(owner_uid)
+    for t in tl:
+        if t["id"] == trip_id:
+            users = t.setdefault("reactions", {}).setdefault(key, [])
+            if me_uid in users:
+                users.remove(me_uid)
+            else:
+                users.append(me_uid)
+            break
+    save_trips(owner_uid, tl)
+
+
 def _sample_trips():
+    base = TRIP_DEFAULTS
+    def mk(**kw):
+        d = {**{k: (dict(v) if isinstance(v, dict) else (list(v) if isinstance(v, list) else v))
+                for k, v in base.items()}, **kw}
+        return d
     return [
-        {
-            "id": str(uuid.uuid4()), "place": "エッフェル塔", "country": "フランス", "city": "パリ",
-            "lat": 48.8584, "lon": 2.2945, "visit_date": "2025-10-12",
-            "expectation": "映画みたいなロマンチックな夜景。シャンパン片手に最高の写真が撮れるはず！",
-            "reality": "夜景は本当に綺麗だった。ただし行列は90分、スリ注意の放送が常に流れていて気が抜けない。芝生は立入禁止だった。それでも点灯の瞬間は鳥肌もの。",
-            "rating": 4, "photos": [], "status": "visited", "visibility": "default",
-        },
-        {
-            "id": str(uuid.uuid4()), "place": "カオサン通り", "country": "タイ", "city": "バンコク",
-            "lat": 13.7590, "lon": 100.4977, "visit_date": "2026-01-05",
-            "expectation": "バックパッカーの聖地で安くて美味い屋台メシ三昧。世界中の旅人と仲良くなる。",
-            "reality": "想像の3倍うるさくて3倍楽しい。パッタイは60バーツで絶品。ただし観光地化が進んでいて『聖地』感は薄め。虫の素揚げは話のネタに一口で十分。",
-            "rating": 5, "photos": [], "status": "visited", "visibility": "public",
-        },
-        {
-            "id": str(uuid.uuid4()), "place": "マチュピチュ", "country": "ペルー", "city": "クスコ",
-            "lat": -13.1631, "lon": -72.5450, "visit_date": "2026-09-20",
-            "expectation": "雲海に浮かぶ天空都市を朝イチで独り占めしたい。高山病が少し心配。",
-            "reality": "", "rating": 0, "photos": [], "status": "planned", "visibility": "default",
-        },
+        mk(id=str(uuid.uuid4()), place="エッフェル塔", country="フランス", city="パリ",
+           lat=48.8584, lon=2.2945, visit_date="2025-10-12",
+           expectation="映画みたいなロマンチックな夜景。シャンパン片手に最高の写真が撮れるはず！",
+           reality="夜景は本当に綺麗だった。ただし行列は90分、スリ注意の放送が常に流れていて気が抜けない。芝生は立入禁止だった。それでも点灯の瞬間は鳥肌もの。",
+           rating=4, photo_rating=5, gap="even", photos=[], status="visited"),
+        mk(id=str(uuid.uuid4()), place="カオサン通り", country="タイ", city="バンコク",
+           lat=13.7590, lon=100.4977, visit_date="2026-01-05",
+           expectation="バックパッカーの聖地で安くて美味い屋台メシ三昧。世界中の旅人と仲良くなる。",
+           reality="想像の3倍うるさくて3倍楽しい。パッタイは60バーツで絶品。ただし観光地化が進んでいて『聖地』感は薄め。虫の素揚げは話のネタに一口で十分。",
+           rating=5, photo_rating=3, gap="up", photos=[], status="visited", visibility="public"),
+        mk(id=str(uuid.uuid4()), place="マチュピチュ", country="ペルー", city="クスコ",
+           lat=-13.1631, lon=-72.5450, visit_date="2026-09-20",
+           expectation="雲海に浮かぶ天空都市を朝イチで独り占めしたい。高山病が少し心配。",
+           reality="", rating=0, photos=[], status="planned"),
     ]
 
 
@@ -410,10 +532,11 @@ def auth_gate():
                 else:
                     salt = uuid.uuid4().hex
                     users[uid] = {"name": name, "salt": salt, "pw": hash_pw(pw, salt),
-                                  "lang": st.session_state.lang, **{k: (list(v) if isinstance(v, list) else v)
-                                                                    for k, v in USER_DEFAULTS.items() if k != "lang"}}
+                                  "lang": st.session_state.lang,
+                                  **{k: (list(v) if isinstance(v, list) else v)
+                                     for k, v in USER_DEFAULTS.items() if k != "lang"}}
                     save_users(users)
-                    save_trips(uid, _sample_trips())  # お試し用サンプルを初期投入
+                    save_trips(uid, _sample_trips())
                     st.session_state.user = uid
                     st.rerun()
 
@@ -439,6 +562,9 @@ def persist():
 
 # ---------------------------------------------------------------- 共通部品
 STAR = lambda r: "★" * r + "☆" * (5 - r) if r else "—"
+GAP_CHIP = {"up": ("chip-gap-up", "gap_up"), "even": ("chip-gap-even", "gap_even"),
+            "down": ("chip-gap-down", "gap_down")}
+REACTIONS = [("nice", "🌈"), ("lol", "😂"), ("helpful", "📝")]
 
 
 def page_header(icon, title, sub=""):
@@ -449,21 +575,26 @@ def page_header(icon, title, sub=""):
     </div>""", unsafe_allow_html=True)
 
 
+def is_locked(t, owner_uid):
+    """タイムカプセル封印中か（本人にも見せない）"""
+    return t.get("capsule") and t["status"] == "planned"
+
+
 def popup_html(t, owner_name=None):
     reality = t["reality"] or "—"
+    expectation = "🔒" if t.get("capsule") and t["status"] == "planned" else t["expectation"]
     owner_line = f'<p style="margin:0 0 4px; font-size:12px; font-weight:bold; color:#805ad5;">👤 {owner_name}</p>' if owner_name else ""
     return f"""
     <div style="font-family:sans-serif; width:260px;">
       {owner_line}
       <h4 style="margin:0 0 4px;">{'✅' if t['status']=='visited' else '🗓️'} {t['place']}</h4>
       <p style="margin:0 0 6px; color:#888; font-size:12px;">{country_label(t['country'])}・{t['city']}｜{t['visit_date']}</p>
-      <p style="margin:0; font-size:12px;"><b style="color:#2b6cb0;">{tr('expectation')}</b><br>{t['expectation']}</p>
+      <p style="margin:0; font-size:12px;"><b style="color:#2b6cb0;">{tr('expectation')}</b><br>{expectation}</p>
       <p style="margin:6px 0 0; font-size:12px;"><b style="color:#c05621;">{tr('reality')}</b><br>{reality}</p>
       <p style="margin:6px 0 0; font-size:13px;"><span style="color:#d69e2e;">{STAR(t['rating'])}</span></p>
     </div>"""
 
 
-# カテゴリ → (ピンの色, アイコン)：Flighty風に自分と友達で色を分ける
 PIN_STYLE = {
     "my_visited": ("orange", "camera"),
     "my_planned": ("blue", "calendar"),
@@ -473,7 +604,6 @@ PIN_STYLE = {
 
 
 def build_map(entries, height=440):
-    """entries: (trip, category, owner_name) のリスト"""
     m = folium.Map(location=[25, 20], zoom_start=1, tiles="CartoDB positron")
     geo = load_world_geojson()
 
@@ -488,7 +618,6 @@ def build_map(entries, height=440):
                     "fillColor": fill, "color": line, "weight": 1, "fillOpacity": 0.3},
             ).add_to(m)
 
-    # 足跡：自分はオレンジ、友達はパープルで塗る（自分を上に重ねる）
     paint({t["country"] for t, cat, _ in entries if cat == "fr_visited"}, "#b794f4", "#805ad5")
     paint({t["country"] for t, cat, _ in entries if cat == "my_visited"}, "#f6ad55", "#dd6b20")
 
@@ -503,6 +632,33 @@ def build_map(entries, height=440):
         ).add_to(m)
     return st_folium(m, height=height, use_container_width=True,
                      returned_objects=[], key="home_map")
+
+
+def all_visible_visited(exclude_trip_id=None):
+    """自分が見られる全ユーザーの訪問済み投稿 (trip, owner_uid, owner)"""
+    out = []
+    for uid, owner in USERS.items():
+        tl = trips if uid == USER_ID else load_trips(uid)
+        for t in tl:
+            if t["status"] != "visited" or t["id"] == exclude_trip_id:
+                continue
+            if can_see(t, uid, owner, USER_ID, ME):
+                out.append((t, uid, owner))
+    return out
+
+
+def reaction_row(t, owner_uid):
+    rx = t.get("reactions", {})
+    with st.container(key=f"rxrow_{t['id']}"):
+        cols = st.columns(len(REACTIONS))
+        for col, (key, emoji) in zip(cols, REACTIONS):
+            users_r = rx.get(key, [])
+            mine = USER_ID in users_r
+            label = f"{emoji} {len(users_r)}" if users_r else emoji
+            if col.button(label, key=f"rx_{t['id']}_{key}", help=tr(f"rx_{key}"),
+                          type="primary" if mine else "secondary"):
+                toggle_reaction(owner_uid, t["id"], key, USER_ID)
+                st.rerun()
 
 
 def feed_card(t, owner_uid, owner, show_visibility=False):
@@ -520,28 +676,59 @@ def feed_card(t, owner_uid, owner, show_visibility=False):
                 pcols = st.columns(min(3, len(t["photos"])))
                 for i, ph in enumerate(t["photos"]):
                     pcols[i % len(pcols)].image(ph, use_container_width=True)
+
         chips = ('<span class="chip chip-done">' + tr("chip_visited") + '</span>'
                  if t["status"] == "visited"
                  else '<span class="chip chip-plan">' + tr("chip_planned") + '</span>')
+        if t.get("gap") in GAP_CHIP:
+            cls, key = GAP_CHIP[t["gap"]]
+            chips += f'<span class="chip {cls}">{tr(key)}</span>'
         if show_visibility:
             vis = effective_visibility(t, owner)
             chips += ('<span class="chip chip-pub">' + tr("vis_public_chip") + '</span>' if vis == "public"
                       else '<span class="chip chip-frd">' + tr("vis_friends_chip") + '</span>')
+
         head, stars = st.columns([3, 1])
+        meta = f'🗓 {t["visit_date"]}　{chips}'
+        comps = [USERS.get(c, {}).get("name", c) for c in t.get("companions", [])]
+        if comps:
+            meta += f'<br>👥 {", ".join(comps)} {tr("with_label")}'
         head.markdown(f'<p class="trip-title">{t["place"]}</p>'
-                      f'<div class="trip-meta">🗓 {t["visit_date"]}　{chips}</div>',
-                      unsafe_allow_html=True)
-        stars.markdown(f'<div class="trip-stars">{STAR(t["rating"])}</div>', unsafe_allow_html=True)
+                      f'<div class="trip-meta">{meta}</div>', unsafe_allow_html=True)
+        if t["status"] == "visited":
+            srows = f'🔁 {STAR(t["rating"])}'
+            if t.get("photo_rating"):
+                srows = f'📸 {STAR(t["photo_rating"])}<br>' + srows
+            stars.markdown(f'<div class="trip-stars">{srows}</div>', unsafe_allow_html=True)
+
         exp_col, real_col = st.columns(2)
         with exp_col:
             st.markdown(f"**{tr('expectation')}**")
-            st.info(t["expectation"])
+            if is_locked(t, owner_uid):
+                st.info(tr("capsule_locked"))
+            else:
+                st.info(t["expectation"])
         with real_col:
             st.markdown(f"**{tr('reality')}**")
             if t["reality"]:
                 st.warning(t["reality"])
             else:
                 st.caption(tr("no_reality"))
+
+        # 自分の計画中の旅 → 同じあたりに行った人の「現実」を事前チェック
+        if owner_uid == USER_ID and t["status"] == "planned":
+            with st.expander(tr("others_reality")):
+                near = [(o_t, o_uid, o) for o_t, o_uid, o in all_visible_visited(t["id"])
+                        if haversine_km(t["lat"], t["lon"], o_t["lat"], o_t["lon"]) <= 75]
+                if not near:
+                    st.caption(tr("no_others"))
+                for o_t, o_uid, o in near:
+                    st.markdown(f"**{o.get('name', o_uid)}** — {o_t['place']}　"
+                                f"<span style='color:#f6ad55;'>{STAR(o_t['rating'])}</span>",
+                                unsafe_allow_html=True)
+                    st.caption(o_t["reality"] or "—")
+
+        reaction_row(t, owner_uid)
 
 
 VIS_OPTIONS = ["default", "post_public", "friends_only"]
@@ -571,6 +758,20 @@ if page == "map":
       <div class="hero-sub">{tr('hero_sub')}</div>
     </div>""", unsafe_allow_html=True)
 
+    # 旅程リマインド
+    today = date.today()
+    for t in trips:
+        if t["status"] != "planned":
+            continue
+        try:
+            d = date.fromisoformat(t["visit_date"])
+        except ValueError:
+            continue
+        if 0 <= (d - today).days <= 7:
+            st.info(tr("rem_soon").format(place=t["place"], date=t["visit_date"]))
+        elif d < today:
+            st.warning(tr("rem_overdue").format(place=t["place"]))
+
     visited = [t for t in trips if t["status"] == "visited"]
     planned = [t for t in trips if t["status"] == "planned"]
     stats = [
@@ -583,7 +784,6 @@ if page == "map":
         f'<div class="stat"><div class="ico">{i}</div><div class="val">{v}</div><div class="lab">{l}</div></div>'
         for i, v, l in stats) + '</div>', unsafe_allow_html=True)
 
-    # Flighty風フィルタ：自分/友達 × 行った/これから
     MAP_FILTERS = ["my_visited", "my_planned", "fr_visited", "fr_planned"]
     active = st.pills("map_filter", MAP_FILTERS, selection_mode="multi",
                       default=MAP_FILTERS, format_func=lambda k: tr(f"flt_{k}"),
@@ -604,6 +804,15 @@ if page == "map":
             cat = "fr_visited" if t["status"] == "visited" else "fr_planned"
             if cat in active:
                 entries.append((t, cat, owner.get("name", fid)))
+
+    # 足跡タイムラプス
+    vis_dates = sorted({t["visit_date"] for t, cat, _ in entries if cat.endswith("visited")})
+    if len(vis_dates) >= 2:
+        with st.expander(tr("timelapse")):
+            upto = st.select_slider("date", options=vis_dates, value=vis_dates[-1],
+                                    label_visibility="collapsed")
+            entries = [(t, cat, n) for t, cat, n in entries
+                       if not cat.endswith("visited") or t["visit_date"] <= upto]
     build_map(entries)
 
 # ---------- フィード ----------
@@ -613,7 +822,6 @@ elif page == "feed":
                      horizontal=True, label_visibility="collapsed")
 
     if scope == tr("scope_friends"):
-        # 自分 + フレンドの投稿（友達のみ or 全体公開）
         entries = [(t, USER_ID, ME) for t in trips]
         for fid in ME.get("friends", []):
             owner = USERS.get(fid)
@@ -629,7 +837,6 @@ elif page == "feed":
                    or (flt == tr("flt_visited") and t["status"] == "visited")
                    or (flt == tr("flt_planned") and t["status"] == "planned")]
     else:
-        # 全ユーザーの「全体公開」投稿
         entries = []
         for uid, owner in USERS.items():
             tl = trips if uid == USER_ID else load_trips(uid)
@@ -646,7 +853,25 @@ elif page == "feed":
 elif page == "add":
     page_header("🛫", tr("add_title"), tr("add_sub"))
     st.markdown(f"**{tr('pick_map')}**")
-    pick = folium.Map(location=[25, 20], zoom_start=1, tiles="CartoDB positron")
+
+    # 場所名検索（ジオコーディング）
+    with st.container(key="frow_geo"):
+        g1, g2 = st.columns([3, 1])
+        gq = g1.text_input("geo_q", placeholder=tr("search_place"), label_visibility="collapsed")
+        if g2.button(tr("search_btn"), use_container_width=True):
+            hit = geocode(gq) if gq else None
+            if hit:
+                st.session_state.pick_latlon = (hit[0], hit[1])
+                st.session_state.pick_name = hit[2]
+                st.rerun()
+            else:
+                st.error(tr("geocode_err"))
+    if st.session_state.get("pick_name"):
+        st.success(tr("geocode_ok") + st.session_state.pick_name)
+
+    pick = folium.Map(location=st.session_state.get("pick_latlon", [25, 20]),
+                      zoom_start=10 if "pick_latlon" in st.session_state else 1,
+                      tiles="CartoDB positron")
     if "pick_latlon" in st.session_state:
         folium.Marker(st.session_state.pick_latlon, icon=folium.Icon(color="blue")).add_to(pick)
     out = st_folium(pick, height=320, use_container_width=True, key="pick_map")
@@ -654,6 +879,7 @@ elif page == "add":
         ll = (out["last_clicked"]["lat"], out["last_clicked"]["lng"])
         if st.session_state.get("pick_latlon") != ll:
             st.session_state.pick_latlon = ll
+            st.session_state.pop("pick_name", None)
             st.rerun()
 
     latlon = st.session_state.get("pick_latlon")
@@ -668,6 +894,7 @@ elif page == "add":
         city = st.text_input(tr("city"), placeholder=tr("city_ph"))
         visit_date = st.date_input(tr("visit_date"), value=date.today())
         expectation = st.text_area(tr("expect_label"), height=120, placeholder=tr("expect_ph"))
+        capsule = st.checkbox(tr("capsule"))
         visibility = visibility_select()
         if st.form_submit_button(tr("submit_trip"), type="primary", use_container_width=True):
             if not (place and country and city and expectation and latlon):
@@ -677,11 +904,13 @@ elif page == "add":
                     "id": str(uuid.uuid4()), "place": place, "country": country,
                     "city": city, "lat": latlon[0], "lon": latlon[1],
                     "visit_date": str(visit_date), "expectation": expectation,
-                    "reality": "", "rating": 0, "photos": [], "status": "planned",
-                    "visibility": visibility,
+                    "reality": "", "rating": 0, "photo_rating": 0, "gap": None,
+                    "photos": [], "status": "planned", "visibility": visibility,
+                    "capsule": capsule, "companions": [], "reactions": {},
                 })
                 persist()
-                del st.session_state.pick_latlon
+                st.session_state.pop("pick_latlon", None)
+                st.session_state.pop("pick_name", None)
                 st.success(f"「{place}」{tr('added')}")
 
 # ---------- 追記（事後） ----------
@@ -693,10 +922,19 @@ elif page == "update":
     else:
         target = st.selectbox(tr("upd_which"), planned,
                               format_func=lambda t: f"{t['place']}（{country_label(t['country'])}・{t['city']}｜{t['visit_date']}）")
-        st.markdown(f"> 🌈 **{tr('upd_past')}**: {target['expectation']}")
+        if is_locked(target, USER_ID):
+            st.info(tr("capsule_locked"))
+        else:
+            st.markdown(f"> 🌈 **{tr('upd_past')}**: {target['expectation']}")
         with st.form("update_trip"):
             reality = st.text_area(tr("upd_reality"), height=140, placeholder=tr("upd_reality_ph"))
-            rating = st.slider(tr("rating"), 1, 5, 3, format="%d ★")
+            gap = st.radio(tr("gap_label"), ["up", "even", "down"], index=1, horizontal=True,
+                           format_func=lambda g: tr(f"gap_{g}"))
+            photo_rating = st.slider(tr("rating_photo"), 1, 5, 3, format="%d ★")
+            rating = st.slider(tr("rating_again"), 1, 5, 3, format="%d ★")
+            friend_opts = ME.get("friends", [])
+            companions = st.multiselect(tr("companions"), friend_opts,
+                                        format_func=lambda f: USERS.get(f, {}).get("name", f)) if friend_opts else []
             photos = st.file_uploader(tr("photos"), type=["png", "jpg", "jpeg", "webp"],
                                       accept_multiple_files=True)
             visibility = visibility_select(current=target.get("visibility", "default"))
@@ -704,13 +942,15 @@ elif page == "update":
                 if not reality:
                     st.error(tr("err_reality"))
                 else:
-                    target["reality"] = reality
-                    target["rating"] = rating
+                    was_capsule = is_locked(target, USER_ID)
+                    target.update(reality=reality, rating=rating, photo_rating=photo_rating,
+                                  gap=gap, companions=companions, status="visited",
+                                  visibility=visibility)
                     target["photos"] = [p.getvalue() for p in photos] if photos else []
-                    target["status"] = "visited"
-                    target["visibility"] = visibility
                     persist()
                     st.success(f"「{target['place']}」{tr('updated')}")
+                    if was_capsule:
+                        st.info(f"{tr('capsule_open')}\n\n> {target['expectation']}")
                     st.balloons()
 
 # ---------- プロフィール ----------
@@ -722,18 +962,35 @@ elif page == "profile":
       <div><div class="nm">{ME.get('name', USER_ID)}</div><div class="id">@{USER_ID}</div></div>
     </div>""", unsafe_allow_html=True)
 
-    tab_posts, tab_friends, tab_settings = st.tabs([tr("tab_posts"), tr("tab_friends"), tr("tab_settings")])
+    tab_posts, tab_friends, tab_wrapped, tab_settings = st.tabs(
+        [tr("tab_posts"), tr("tab_friends"), tr("tab_wrapped"), tr("tab_settings")])
+
+    # 統計の共通計算
+    def total_km(tl):
+        v = sorted([t for t in tl if t["status"] == "visited"], key=lambda x: x["visit_date"])
+        return sum(haversine_km(a["lat"], a["lon"], b["lat"], b["lon"]) for a, b in zip(v, v[1:]))
+
+    def gap_rate(tl):
+        g = [t["gap"] for t in tl if t["status"] == "visited" and t.get("gap")]
+        return round(100 * g.count("up") / len(g)) if g else None
 
     with tab_posts:
+        km = total_km(trips)
+        rate = gap_rate(trips)
         stats = [
             ("📸", f"{len(visited)}", tr("stat_posts")),
             ("🌍", f"{len({t['country'] for t in visited})}", tr("stat_c")),
             ("🏙️", f"{len({(t['country'], t['city']) for t in visited})}", tr("stat_ci")),
             ("🗓️", f"{len(trips) - len(visited)}", tr("stat_p")),
+            ("🚀", f"{rate}<small>%</small>" if rate is not None else "—", tr("stat_gap")),
+            ("🌐", f"{km:,.0f}<small> km</small>", tr("stat_dist")),
         ]
-        st.markdown('<div class="stats">' + "".join(
+        st.markdown('<div class="stats six">' + "".join(
             f'<div class="stat"><div class="ico">{i}</div><div class="val">{v}</div><div class="lab">{l}</div></div>'
             for i, v, l in stats) + '</div>', unsafe_allow_html=True)
+        if km > 0:
+            st.caption("🌍 " + tr("earth_laps").format(laps=f"{km / 40075:.2f}"))
+
         all_photos = [ph for t in visited for ph in t["photos"]]
         st.markdown(f"**{tr('memories')}**")
         if all_photos:
@@ -744,7 +1001,41 @@ elif page == "profile":
             st.caption(tr("no_photos"))
 
     with tab_friends:
-        # 受信した申請
+        # 届いた旅のバトン
+        suggestions = ME.get("suggestions", [])
+        if suggestions:
+            st.markdown(f"**{tr('baton_in')}**")
+            for s in list(suggestions):
+                su = USERS.get(s["from"], {})
+                with st.container(border=True, key=f"frow_sug_{s['id']}"):
+                    st.markdown(f"**{su.get('name', s['from'])}** {tr('baton_from')}: "
+                                f"**{s['place']}**（{country_label(s['country'])}・{s['city']}）")
+                    if s.get("note"):
+                        st.caption(f"💬 {s['note']}")
+                    c1, c2 = st.columns(2)
+                    if c1.button(tr("baton_accept"), key=f"sug_ok_{s['id']}", type="primary",
+                                 use_container_width=True):
+                        st.session_state.trips.append({
+                            "id": str(uuid.uuid4()), "place": s["place"], "country": s["country"],
+                            "city": s["city"], "lat": s["lat"], "lon": s["lon"],
+                            "visit_date": str(date.today()),
+                            "expectation": f"🎁 {su.get('name', s['from'])}: {s.get('note', '')}",
+                            "reality": "", "rating": 0, "photo_rating": 0, "gap": None,
+                            "photos": [], "status": "planned", "visibility": "default",
+                            "capsule": False, "companions": [], "reactions": {},
+                        })
+                        persist()
+                        ME["suggestions"].remove(s)
+                        save_users(USERS)
+                        st.success(tr("baton_added"))
+                        st.rerun()
+                    if c2.button(tr("baton_decline"), key=f"sug_ng_{s['id']}", use_container_width=True):
+                        ME["suggestions"].remove(s)
+                        save_users(USERS)
+                        st.rerun()
+            st.divider()
+
+        # フレンド申請（受信）
         reqs = ME.get("requests_in", [])
         if reqs:
             st.markdown(f"**{tr('req_in')}**")
@@ -807,16 +1098,70 @@ elif page == "profile":
                     save_users(USERS)
                     st.rerun()
 
+        # 旅のバトンを送る
+        if friends:
+            st.divider()
+            st.markdown(f"**{tr('baton_title')}**")
+            with st.form("baton"):
+                b_to = st.selectbox(tr("baton_to"), friends,
+                                    format_func=lambda f: USERS.get(f, {}).get("name", f))
+                b_place = st.text_input(tr("baton_place"), placeholder=tr("place_ph"))
+                b_country = st.selectbox(tr("country"), list(COUNTRIES.keys()), index=None,
+                                         placeholder=tr("country_ph"), format_func=country_label)
+                b_city = st.text_input(tr("city"), placeholder=tr("city_ph"))
+                b_note = st.text_area(tr("baton_note"), height=80)
+                if st.form_submit_button(tr("baton_send"), type="primary", use_container_width=True):
+                    if not (b_to and b_place and b_country and b_city):
+                        st.error(tr("err_fill_all"))
+                    else:
+                        hit = geocode(f"{b_place}, {b_city}, {COUNTRIES.get(b_country, b_country)}") \
+                              or geocode(f"{b_city}, {COUNTRIES.get(b_country, b_country)}")
+                        if not hit:
+                            st.error(tr("baton_geo_err"))
+                        else:
+                            USERS[b_to].setdefault("suggestions", []).append({
+                                "id": str(uuid.uuid4()), "from": USER_ID, "place": b_place,
+                                "country": b_country, "city": b_city,
+                                "lat": hit[0], "lon": hit[1], "note": b_note,
+                            })
+                            save_users(USERS)
+                            st.success(tr("baton_sent"))
+
+    with tab_wrapped:
+        years = sorted({t["visit_date"][:4] for t in visited}, reverse=True)
+        if not years:
+            st.info(tr("wrapped_none"))
+        else:
+            year = st.selectbox(tr("wrapped_year"), years)
+            yv = [t for t in visited if t["visit_date"].startswith(year)]
+            if not yv:
+                st.info(tr("wrapped_none"))
+            else:
+                rate = gap_rate(yv)
+                km = total_km(yv)
+                best = max(yv, key=lambda t: (t["rating"], t.get("photo_rating", 0)))
+                cells = [
+                    (len({t["country"] for t in yv}), tr("w_countries")),
+                    (len({(t["country"], t["city"]) for t in yv}), tr("w_cities")),
+                    (len(yv), tr("w_spots")),
+                    (f"{rate}%" if rate is not None else "—", tr("w_gap")),
+                ]
+                st.markdown(f"""
+                <div class="wrapped">
+                  <div class="wt">✨ {tr('w_title').format(year=year)}</div>
+                  <div class="grid">{"".join(f'<div class="cell"><div class="v">{v}</div><div class="k">{k}</div></div>' for v, k in cells)}</div>
+                  <div class="best">🏆 {tr('w_best')}: <b>{best['place']}</b>（{country_label(best['country'])}）<br>
+                  <span style="color:#ffd98a;">{STAR(best['rating'])}</span>　🌐 {km:,.0f} km {tr('w_dist')}</div>
+                  <div class="logo">🧭 {tr('hero_title')}</div>
+                </div>""", unsafe_allow_html=True)
+
     with tab_settings:
-        # アイコン設定
         st.markdown(f"**{tr('avatar')}**")
         av = st.file_uploader(tr("avatar_upload"), type=["png", "jpg", "jpeg", "webp"], key="avatar_up")
-        # デフォルト公開範囲
         vis_labels = {"public": tr("vis_public"), "friends": tr("vis_friends")}
         default_vis = st.radio(tr("default_vis"), ["friends", "public"],
                                index=0 if ME.get("default_visibility", "friends") == "friends" else 1,
                                format_func=lambda v: vis_labels[v], horizontal=True)
-        # 言語
         lang_label = st.radio(tr("language"), ["日本語", "English"],
                               index=0 if st.session_state.lang == "ja" else 1, horizontal=True)
         if st.button(tr("save_settings"), type="primary", use_container_width=True):
@@ -831,7 +1176,7 @@ elif page == "profile":
 
         st.divider()
         if st.button(tr("logout"), use_container_width=True):
-            for k in ("user", "trips", "page", "pick_latlon"):
+            for k in ("user", "trips", "page", "pick_latlon", "pick_name"):
                 st.session_state.pop(k, None)
             st.rerun()
 
