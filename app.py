@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 """たびログ / TabiLog — 「期待と現実」を記録する旅アプリ"""
 import hashlib
+import hmac
 import io
 import math
 import uuid
@@ -10,6 +11,7 @@ import folium
 import requests
 import streamlit as st
 from PIL import Image
+from streamlit_cookies_controller import CookieController
 from streamlit_folium import st_folium
 from supabase import create_client
 
@@ -23,6 +25,35 @@ def get_sb():
 
 
 sb = get_sb()
+cookies = CookieController(key="tabilog_cookies")
+COOKIE_NAME = "tabilog_token"
+
+
+def make_token(uid):
+    sig = hmac.new(st.secrets["SUPABASE_KEY"].encode(), uid.encode(), hashlib.sha256).hexdigest()
+    return f"{uid}|{sig}"
+
+
+def parse_token(token):
+    if not token or "|" not in token:
+        return None
+    uid, sig = token.split("|", 1)
+    good = hmac.new(st.secrets["SUPABASE_KEY"].encode(), uid.encode(), hashlib.sha256).hexdigest()
+    return uid if hmac.compare_digest(sig, good) else None
+
+
+def remember_login(uid):
+    cookies.set(COOKIE_NAME, make_token(uid), max_age=60 * 60 * 24 * 30)
+
+
+# クッキー操作は st.rerun() と同一サイクルだと反映されないため、次サイクルで実行する
+_skip_cookie_login = False
+_cookie_action = st.session_state.pop("cookie_action", None)
+if _cookie_action == "__remove__":
+    cookies.remove(COOKIE_NAME)
+    _skip_cookie_login = True
+elif _cookie_action:
+    remember_login(_cookie_action)
 
 # ---------------------------------------------------------------- 多言語
 I18N = {
@@ -252,6 +283,10 @@ html, body, [class*="st-"] { font-family: 'Noto Sans JP', sans-serif; }
 [data-testid="stSidebar"], [data-testid="stSidebarCollapsedControl"] { display: none; }
 /* 固定ヘッダーを透過にしてコンテンツと干渉しないように */
 [data-testid="stHeader"] { background: transparent; }
+/* 右下のStreamlitバッジ・フッターを非表示（下部ナビと重なってボタンが押せなくなるため） */
+[class*="viewerBadge"], footer, .stAppDeployButton, [data-testid="stAppDeployButton"] {
+  display: none !important;
+}
 [data-testid="stMainBlockContainer"] { max-width: 640px; padding: 2.2rem 1rem 7rem; }
 
 .logo-grad { font-family: 'Zen Maru Gothic', sans-serif; font-weight: 900; background: linear-gradient(135deg, #ffb46a, #ff5e7e, #a07bff); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
@@ -553,6 +588,7 @@ def auth_gate():
                 if u and hash_pw(pw, u["salt"]) == u["pw"]:
                     st.session_state.user = uid
                     st.session_state.lang = u.get("lang", st.session_state.lang)
+                    st.session_state.cookie_action = uid
                     st.rerun()
                 else:
                     st.error(tr("login_err"))
@@ -578,13 +614,19 @@ def auth_gate():
                         "pw": hash_pw(pw, salt), "lang": st.session_state.lang,
                     }).execute()
                     st.session_state.user = uid
+                    st.session_state.cookie_action = uid
                     st.rerun()
 
     st.stop()
 
 
 if "user" not in st.session_state:
-    auth_gate()
+    # クッキーから自動ログイン（更新してもログアウトされない）
+    cookie_uid = None if _skip_cookie_login else parse_token(cookies.get(COOKIE_NAME))
+    if cookie_uid and sb.table("users").select("id").eq("id", cookie_uid).execute().data:
+        st.session_state.user = cookie_uid
+    else:
+        auth_gate()
 
 USERS = load_users()
 USER_ID = st.session_state.user
@@ -1240,6 +1282,7 @@ elif page == "profile":
 
         st.divider()
         if st.button(tr("logout"), use_container_width=True):
+            st.session_state.cookie_action = "__remove__"
             for k in ("user", "trips", "page", "pick_latlon", "pick_name"):
                 st.session_state.pop(k, None)
             st.rerun()
