@@ -1,24 +1,28 @@
 # -*- coding: utf-8 -*-
 """たびログ / TabiLog — 「期待と現実」を記録する旅アプリ"""
-import base64
 import hashlib
-import json
+import io
 import math
-import os
 import uuid
 from datetime import date
 
 import folium
 import requests
 import streamlit as st
+from PIL import Image
 from streamlit_folium import st_folium
+from supabase import create_client
 
 st.set_page_config(page_title="たびログ | TabiLog", page_icon="🧭",
                    layout="centered", initial_sidebar_state="collapsed")
 
-DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
-os.makedirs(DATA_DIR, exist_ok=True)
-USERS_FILE = os.path.join(DATA_DIR, "users.json")
+
+@st.cache_resource(show_spinner=False)
+def get_sb():
+    return create_client(st.secrets["SUPABASE_URL"], st.secrets["SUPABASE_KEY"])
+
+
+sb = get_sb()
 
 # ---------------------------------------------------------------- 多言語
 I18N = {
@@ -396,18 +400,24 @@ USER_DEFAULTS = {"avatar": None, "friends": [], "requests_in": [],
 
 def load_users():
     users = {}
-    if os.path.exists(USERS_FILE):
-        with open(USERS_FILE, encoding="utf-8") as f:
-            users = json.load(f)
-    for u in users.values():
-        for k, v in USER_DEFAULTS.items():
-            u.setdefault(k, list(v) if isinstance(v, list) else v)
+    for r in sb.table("users").select("*").execute().data:
+        users[r["id"]] = {
+            "name": r["name"], "salt": r["salt"], "pw": r["pw"],
+            "avatar": r.get("avatar_url"),
+            "default_visibility": r.get("default_visibility", "friends"),
+            "lang": r.get("lang", "ja"),
+            "friends": [], "requests_in": [], "suggestions": [],
+        }
+    for r in sb.table("friendships").select("*").execute().data:
+        if r["user_a"] in users:
+            users[r["user_a"]]["friends"].append(r["user_b"])
+    for r in sb.table("friend_requests").select("*").execute().data:
+        if r["to_user"] in users:
+            users[r["to_user"]]["requests_in"].append(r["from_user"])
+    for r in sb.table("suggestions").select("*").execute().data:
+        if r["to_user"] in users:
+            users[r["to_user"]]["suggestions"].append(r)
     return users
-
-
-def save_users(users):
-    with open(USERS_FILE, "w", encoding="utf-8") as f:
-        json.dump(users, f, ensure_ascii=False, indent=2)
 
 
 def hash_pw(password, salt):
@@ -416,40 +426,69 @@ def hash_pw(password, salt):
 
 def avatar_html(user, name):
     if user and user.get("avatar"):
-        return f'<img src="data:image/png;base64,{user["avatar"]}">'
+        return f'<img src="{user["avatar"]}">'
     return (name or "?")[0]
+
+
+def upload_image(data, path):
+    """画像を圧縮（長辺1280px・JPEG）してStorageへ。公開URLを返す"""
+    img = Image.open(io.BytesIO(data)).convert("RGB")
+    img.thumbnail((1280, 1280))
+    buf = io.BytesIO()
+    img.save(buf, "JPEG", quality=82)
+    sb.storage.from_("photos").upload(path, buf.getvalue(),
+                                      {"content-type": "image/jpeg", "upsert": "true"})
+    return sb.storage.from_("photos").get_public_url(path)
 
 
 # ---------------------------------------------------------------- 旅データ
 TRIP_DEFAULTS = {"visibility": "default", "gap": None, "photo_rating": 0,
                  "capsule": False, "companions": [], "reactions": {}}
 
+TRIP_FIELDS = ("id", "place", "country", "city", "lat", "lon", "visit_date",
+               "expectation", "reality", "rating", "photo_rating", "gap",
+               "status", "visibility", "capsule", "companions", "reactions")
 
-def trips_file(username):
-    return os.path.join(DATA_DIR, f"trips_{username}.json")
+
+def _row_to_trip(r):
+    t = {k: r.get(k) for k in TRIP_FIELDS}
+    t["photos"] = r.get("photo_urls") or []
+    t["visit_date"] = str(t["visit_date"])
+    for k, v in TRIP_DEFAULTS.items():
+        if t.get(k) is None and k != "gap":
+            t[k] = dict(v) if isinstance(v, dict) else (list(v) if isinstance(v, list) else v)
+    return t
+
+
+def _trip_to_row(t, owner=None):
+    row = {k: t.get(k) for k in TRIP_FIELDS}
+    row["photo_urls"] = t.get("photos", [])
+    if owner:
+        row["owner"] = owner
+    return row
 
 
 def load_trips(username):
-    path = trips_file(username)
-    if not os.path.exists(path):
-        return []
-    with open(path, encoding="utf-8") as f:
-        trips = json.load(f)
-    for t in trips:
-        t["photos"] = [base64.b64decode(p) for p in t.get("photos", [])]
-        for k, v in TRIP_DEFAULTS.items():
-            t.setdefault(k, dict(v) if isinstance(v, dict) else (list(v) if isinstance(v, list) else v))
-    return trips
+    rows = sb.table("trips").select("*").eq("owner", username).execute().data
+    return [_row_to_trip(r) for r in rows]
 
 
-def save_trips(username, trips):
-    out = []
-    for t in trips:
-        c = dict(t)
-        c["photos"] = [base64.b64encode(p).decode() for p in t.get("photos", [])]
-        out.append(c)
-    with open(trips_file(username), "w", encoding="utf-8") as f:
-        json.dump(out, f, ensure_ascii=False)
+def load_all_trips():
+    """全ユーザーの投稿を (trip, owner_uid) で返す"""
+    return [(_row_to_trip(r), r["owner"])
+            for r in sb.table("trips").select("*").execute().data]
+
+
+def db_insert_trip(t, owner):
+    sb.table("trips").insert(_trip_to_row(t, owner)).execute()
+
+
+def db_update_trip(t):
+    sb.table("trips").update(_trip_to_row(t)).eq("id", t["id"]).execute()
+
+
+def db_delete_trip(trip_id):
+    sb.table("trips").delete().eq("id", trip_id).execute()
 
 
 def effective_visibility(trip, owner):
@@ -468,19 +507,20 @@ def can_see(trip, owner_uid, owner, viewer_uid, viewer):
 
 def toggle_reaction(owner_uid, trip_id, key, me_uid):
     """投稿へのリアクションをトグルして保存"""
-    if owner_uid == st.session_state.user:
-        tl = st.session_state.trips
+    rows = sb.table("trips").select("reactions").eq("id", trip_id).execute().data
+    if not rows:
+        return
+    rx = rows[0].get("reactions") or {}
+    lst = rx.setdefault(key, [])
+    if me_uid in lst:
+        lst.remove(me_uid)
     else:
-        tl = load_trips(owner_uid)
-    for t in tl:
-        if t["id"] == trip_id:
-            users = t.setdefault("reactions", {}).setdefault(key, [])
-            if me_uid in users:
-                users.remove(me_uid)
-            else:
-                users.append(me_uid)
-            break
-    save_trips(owner_uid, tl)
+        lst.append(me_uid)
+    sb.table("trips").update({"reactions": rx}).eq("id", trip_id).execute()
+    if owner_uid == st.session_state.user:
+        for t in st.session_state.trips:
+            if t["id"] == trip_id:
+                t["reactions"] = rx
 
 
 # ---------------------------------------------------------------- ログイン画面
@@ -530,12 +570,10 @@ def auth_gate():
                     st.error(tr("err_uid_taken"))
                 else:
                     salt = uuid.uuid4().hex
-                    users[uid] = {"name": name, "salt": salt, "pw": hash_pw(pw, salt),
-                                  "lang": st.session_state.lang,
-                                  **{k: (list(v) if isinstance(v, list) else v)
-                                     for k, v in USER_DEFAULTS.items() if k != "lang"}}
-                    save_users(users)
-                    save_trips(uid, [])
+                    sb.table("users").insert({
+                        "id": uid, "name": name, "salt": salt,
+                        "pw": hash_pw(pw, salt), "lang": st.session_state.lang,
+                    }).execute()
                     st.session_state.user = uid
                     st.rerun()
 
@@ -553,10 +591,6 @@ st.session_state.lang = ME.get("lang", st.session_state.lang)
 if "trips" not in st.session_state:
     st.session_state.trips = load_trips(USER_ID)
 trips = st.session_state.trips
-
-
-def persist():
-    save_trips(USER_ID, st.session_state.trips)
 
 
 # ---------------------------------------------------------------- 共通部品
@@ -636,13 +670,12 @@ def build_map(entries, height=440):
 def all_visible_visited(exclude_trip_id=None):
     """自分が見られる全ユーザーの訪問済み投稿 (trip, owner_uid, owner)"""
     out = []
-    for uid, owner in USERS.items():
-        tl = trips if uid == USER_ID else load_trips(uid)
-        for t in tl:
-            if t["status"] != "visited" or t["id"] == exclude_trip_id:
-                continue
-            if can_see(t, uid, owner, USER_ID, ME):
-                out.append((t, uid, owner))
+    for t, uid in load_all_trips():
+        owner = USERS.get(uid)
+        if not owner or t["status"] != "visited" or t["id"] == exclude_trip_id:
+            continue
+        if can_see(t, uid, owner, USER_ID, ME):
+            out.append((t, uid, owner))
     return out
 
 
@@ -737,9 +770,9 @@ def feed_card(t, owner_uid, owner, show_visibility=False):
                     st.caption(tr("confirm_del"))
                     if st.button(tr("confirm_del_btn"), key=f"del_{t['id']}", type="primary",
                                  use_container_width=True):
+                        db_delete_trip(t["id"])
                         st.session_state.trips = [x for x in st.session_state.trips
                                                   if x["id"] != t["id"]]
-                        persist()
                         st.rerun()
         else:
             reaction_row(t, owner_uid)
@@ -869,11 +902,10 @@ elif page == "feed":
                    or (flt == tr("flt_planned") and t["status"] == "planned")]
     else:
         entries = []
-        for uid, owner in USERS.items():
-            tl = trips if uid == USER_ID else load_trips(uid)
-            for t in tl:
-                if effective_visibility(t, owner) == "public":
-                    entries.append((t, uid, owner))
+        for t, uid in load_all_trips():
+            owner = USERS.get(uid)
+            if owner and effective_visibility(t, owner) == "public":
+                entries.append((t, uid, owner))
 
     if not entries:
         st.info(tr("feed_empty"))
@@ -931,15 +963,16 @@ elif page == "add":
             if not (place and country and city and expectation and latlon):
                 st.error(tr("err_missing"))
             else:
-                st.session_state.trips.append({
+                new_trip = {
                     "id": str(uuid.uuid4()), "place": place, "country": country,
                     "city": city, "lat": latlon[0], "lon": latlon[1],
                     "visit_date": str(visit_date), "expectation": expectation,
                     "reality": "", "rating": 0, "photo_rating": 0, "gap": None,
                     "photos": [], "status": "planned", "visibility": visibility,
                     "capsule": capsule, "companions": [], "reactions": {},
-                })
-                persist()
+                }
+                db_insert_trip(new_trip, USER_ID)
+                st.session_state.trips.append(new_trip)
                 st.session_state.pop("pick_latlon", None)
                 st.session_state.pop("pick_name", None)
                 st.success(f"「{place}」{tr('added')}")
@@ -977,8 +1010,9 @@ elif page == "update":
                     target.update(reality=reality, rating=rating, photo_rating=photo_rating,
                                   gap=gap, companions=companions, status="visited",
                                   visibility=visibility)
-                    target["photos"] = [p.getvalue() for p in photos] if photos else []
-                    persist()
+                    target["photos"] = ([upload_image(p.getvalue(), f"{USER_ID}/{target['id']}/{i}.jpg")
+                                         for i, p in enumerate(photos)] if photos else [])
+                    db_update_trip(target)
                     st.success(f"「{target['place']}」{tr('updated')}")
                     if was_capsule:
                         st.info(f"{tr('capsule_open')}\n\n> {target['expectation']}")
@@ -1037,32 +1071,31 @@ elif page == "profile":
         if suggestions:
             st.markdown(f"**{tr('baton_in')}**")
             for s in list(suggestions):
-                su = USERS.get(s["from"], {})
+                su = USERS.get(s["from_user"], {})
                 with st.container(border=True, key=f"frow_sug_{s['id']}"):
-                    st.markdown(f"**{su.get('name', s['from'])}** {tr('baton_from')}: "
+                    st.markdown(f"**{su.get('name', s['from_user'])}** {tr('baton_from')}: "
                                 f"**{s['place']}**（{country_label(s['country'])}・{s['city']}）")
                     if s.get("note"):
                         st.caption(f"💬 {s['note']}")
                     c1, c2 = st.columns(2)
                     if c1.button(tr("baton_accept"), key=f"sug_ok_{s['id']}", type="primary",
                                  use_container_width=True):
-                        st.session_state.trips.append({
+                        new_trip = {
                             "id": str(uuid.uuid4()), "place": s["place"], "country": s["country"],
                             "city": s["city"], "lat": s["lat"], "lon": s["lon"],
                             "visit_date": str(date.today()),
-                            "expectation": f"🎁 {su.get('name', s['from'])}: {s.get('note', '')}",
+                            "expectation": f"🎁 {su.get('name', s['from_user'])}: {s.get('note', '')}",
                             "reality": "", "rating": 0, "photo_rating": 0, "gap": None,
                             "photos": [], "status": "planned", "visibility": "default",
                             "capsule": False, "companions": [], "reactions": {},
-                        })
-                        persist()
-                        ME["suggestions"].remove(s)
-                        save_users(USERS)
+                        }
+                        db_insert_trip(new_trip, USER_ID)
+                        st.session_state.trips.append(new_trip)
+                        sb.table("suggestions").delete().eq("id", s["id"]).execute()
                         st.success(tr("baton_added"))
                         st.rerun()
                     if c2.button(tr("baton_decline"), key=f"sug_ng_{s['id']}", use_container_width=True):
-                        ME["suggestions"].remove(s)
-                        save_users(USERS)
+                        sb.table("suggestions").delete().eq("id", s["id"]).execute()
                         st.rerun()
             st.divider()
 
@@ -1078,14 +1111,14 @@ elif page == "profile":
                         <div><b>{ru.get('name', rid)}</b><br><small style="opacity:.6;">@{rid}</small></div></div>""",
                                 unsafe_allow_html=True)
                     if c2.button(tr("accept"), key=f"acc_{rid}", type="primary", use_container_width=True):
-                        ME["requests_in"].remove(rid)
-                        ME.setdefault("friends", []).append(rid)
-                        USERS.setdefault(rid, {}).setdefault("friends", []).append(USER_ID)
-                        save_users(USERS)
+                        sb.table("friend_requests").delete().eq("from_user", rid).eq("to_user", USER_ID).execute()
+                        sb.table("friendships").insert([
+                            {"user_a": USER_ID, "user_b": rid},
+                            {"user_a": rid, "user_b": USER_ID},
+                        ]).execute()
                         st.rerun()
                     if c3.button(tr("decline"), key=f"dec_{rid}", use_container_width=True):
-                        ME["requests_in"].remove(rid)
-                        save_users(USERS)
+                        sb.table("friend_requests").delete().eq("from_user", rid).eq("to_user", USER_ID).execute()
                         st.rerun()
             st.divider()
 
@@ -1106,8 +1139,8 @@ elif page == "profile":
                 elif USER_ID in USERS[target_id].get("requests_in", []):
                     st.warning(tr("err_pending"))
                 else:
-                    USERS[target_id].setdefault("requests_in", []).append(USER_ID)
-                    save_users(USERS)
+                    sb.table("friend_requests").insert(
+                        {"from_user": USER_ID, "to_user": target_id}).execute()
                     st.success(tr("req_sent"))
 
         # フレンド一覧
@@ -1123,10 +1156,8 @@ elif page == "profile":
                     <div><b>{fu.get('name', fid)}</b><br><small style="opacity:.6;">@{fid}</small></div></div>""",
                             unsafe_allow_html=True)
                 if c2.button(tr("remove"), key=f"rm_{fid}", use_container_width=True):
-                    ME["friends"].remove(fid)
-                    if USER_ID in USERS.get(fid, {}).get("friends", []):
-                        USERS[fid]["friends"].remove(USER_ID)
-                    save_users(USERS)
+                    sb.table("friendships").delete().eq("user_a", USER_ID).eq("user_b", fid).execute()
+                    sb.table("friendships").delete().eq("user_a", fid).eq("user_b", USER_ID).execute()
                     st.rerun()
 
         # 旅のバトンを送る
@@ -1150,12 +1181,11 @@ elif page == "profile":
                         if not hit:
                             st.error(tr("baton_geo_err"))
                         else:
-                            USERS[b_to].setdefault("suggestions", []).append({
-                                "id": str(uuid.uuid4()), "from": USER_ID, "place": b_place,
-                                "country": b_country, "city": b_city,
-                                "lat": hit[0], "lon": hit[1], "note": b_note,
-                            })
-                            save_users(USERS)
+                            sb.table("suggestions").insert({
+                                "id": str(uuid.uuid4()), "from_user": USER_ID, "to_user": b_to,
+                                "place": b_place, "country": b_country, "city": b_city,
+                                "lat": hit[0], "lon": hit[1], "note": b_note or "",
+                            }).execute()
                             st.success(tr("baton_sent"))
 
     with tab_wrapped:
@@ -1196,12 +1226,12 @@ elif page == "profile":
         lang_label = st.radio(tr("language"), ["日本語", "English"],
                               index=0 if st.session_state.lang == "ja" else 1, horizontal=True)
         if st.button(tr("save_settings"), type="primary", use_container_width=True):
+            upd = {"default_visibility": default_vis,
+                   "lang": "ja" if lang_label == "日本語" else "en"}
             if av is not None:
-                ME["avatar"] = base64.b64encode(av.getvalue()).decode()
-            ME["default_visibility"] = default_vis
-            ME["lang"] = "ja" if lang_label == "日本語" else "en"
-            st.session_state.lang = ME["lang"]
-            save_users(USERS)
+                upd["avatar_url"] = upload_image(av.getvalue(), f"avatars/{USER_ID}.jpg")
+            sb.table("users").update(upd).eq("id", USER_ID).execute()
+            st.session_state.lang = upd["lang"]
             st.success(tr("saved"))
             st.rerun()
 
