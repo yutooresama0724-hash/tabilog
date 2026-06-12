@@ -284,7 +284,11 @@ html, body, [class*="st-"] { font-family: 'Noto Sans JP', sans-serif; }
 /* 固定ヘッダーを透過にしてコンテンツと干渉しないように */
 [data-testid="stHeader"] { background: transparent; }
 /* 右下のStreamlitバッジ・フッターを非表示（下部ナビと重なってボタンが押せなくなるため） */
-[class*="viewerBadge"], footer, .stAppDeployButton, [data-testid="stAppDeployButton"] {
+/* Streamlit Cloudのバッジ（作者アバター+ロゴ）はCSSモジュールのハッシュ付きクラスなので前方一致で消す */
+[class*="viewerBadge"], footer, .stAppDeployButton, [data-testid="stAppDeployButton"],
+[class^="_profileContainer"], [class^="_profilePreview"], [class^="_container"],
+[class^="_link"], [class^="_viewerBadge"], [class^="_chevronDownIcon"],
+[data-testid="appCreatorAvatar"], a[href*="streamlit.io/cloud"] {
   display: none !important;
 }
 [data-testid="stMainBlockContainer"] { max-width: 640px; padding: 2.2rem 1rem 7rem; }
