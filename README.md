@@ -1,5 +1,7 @@
 # 🧭 たびログ — 「期待と現実」を記録する旅アプリ
 
+**🌐 公開中: https://tabilogy.streamlit.app/**
+
 キラキラした面だけでなく、リアルな旅の体験を残すことを重視した旅の記録アプリ。
 
 ## 機能
@@ -10,18 +12,24 @@
 - 📚 期待 → 現実 を並べたカード形式の一覧
 - 📱 スマホ対応レスポンシブレイアウト
 
+## 構成
+
+- フロント/サーバー: Streamlit
+- データベース: Supabase（PostgreSQL）— アカウント・投稿・フレンド・リアクション等
+- 画像: Supabase Storage（アップロード時に長辺1280px・JPEGに自動圧縮）
+- スキーマ: [supabase_schema.sql](supabase_schema.sql)
+
 ## ローカルで実行
 
 ```bash
 pip install -r requirements.txt
+# .streamlit/secrets.toml に以下を設定
+#   SUPABASE_URL = "https://<project>.supabase.co"
+#   SUPABASE_KEY = "<publishable key>"
 streamlit run app.py
 ```
 
-## 公開（Streamlit Community Cloud）
+## デプロイ
 
-1. このリポジトリを GitHub に push
-2. https://share.streamlit.io にアクセスし、GitHub アカウントでログイン
-3. 「Create app」→ このリポジトリ・ブランチ・`app.py` を選択
-4. 「Deploy」をクリック → `https://<アプリ名>.streamlit.app` で公開される
-
-※ データはセッション内保持です（ブラウザを閉じると消えます）。
+Streamlit Community Cloud。main への push で自動再デプロイされる。
+Secrets（SUPABASE_URL / SUPABASE_KEY）は App Settings → Secrets に設定する。
