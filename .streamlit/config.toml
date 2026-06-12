@@ -1,0 +1,6 @@
+[client]
+# 上部のFork/GitHubなどの開発者向けツールバーを非表示にする
+toolbarMode = "minimal"
+
+[theme]
+base = "dark"

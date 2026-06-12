@@ -348,7 +348,8 @@ html, body, [class*="st-"] { font-family: 'Noto Sans JP', sans-serif; }
 .wrapped .best b { font-family: 'Zen Maru Gothic', sans-serif; font-size: 1.1rem; }
 .wrapped .logo { margin-top: 1rem; font-size: .7rem; letter-spacing: .3em; opacity: .7; text-transform: uppercase; }
 
-.st-key-bottomnav { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: min(100vw, 640px); z-index: 999; background: rgba(14, 17, 23, .94); backdrop-filter: blur(14px); border: 1px solid rgba(150, 160, 200, .18); border-bottom: none; border-radius: 20px 20px 0 0; padding: .3rem .5rem calc(.4rem + env(safe-area-inset-bottom)); }
+/* z-indexはStreamlit Cloudのバッジ類より前面にする */
+.st-key-bottomnav { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: min(100vw, 640px); z-index: 2147483000; background: rgba(14, 17, 23, .97); backdrop-filter: blur(14px); border: 1px solid rgba(150, 160, 200, .18); border-bottom: none; border-radius: 20px 20px 0 0; padding: .3rem .5rem calc(.4rem + env(safe-area-inset-bottom)); }
 .st-key-bottomnav [data-testid="stHorizontalBlock"] { flex-wrap: nowrap !important; gap: .3rem; }
 .st-key-bottomnav [data-testid="stColumn"] { flex: 1 1 0 !important; min-width: 0 !important; width: auto !important; }
 .st-key-bottomnav button { background: transparent !important; border: none !important; padding: .25rem 0 !important; min-height: 2.6rem; }
