@@ -10,6 +10,7 @@ from datetime import date
 import folium
 import requests
 import streamlit as st
+import streamlit.components.v1 as components
 from PIL import Image
 from streamlit_cookies_controller import CookieController
 from streamlit_folium import st_folium
@@ -283,12 +284,9 @@ html, body, [class*="st-"] { font-family: 'Noto Sans JP', sans-serif; }
 [data-testid="stSidebar"], [data-testid="stSidebarCollapsedControl"] { display: none; }
 /* 固定ヘッダーを透過にしてコンテンツと干渉しないように */
 [data-testid="stHeader"] { background: transparent; }
-/* 右下のStreamlitバッジ・フッターを非表示（下部ナビと重なってボタンが押せなくなるため） */
-/* Streamlit Cloudのバッジ（作者アバター+ロゴ）はCSSモジュールのハッシュ付きクラスなので前方一致で消す */
-[class*="viewerBadge"], footer, .stAppDeployButton, [data-testid="stAppDeployButton"],
-[class^="_profileContainer"], [class^="_profilePreview"], [class^="_container"],
-[class^="_link"], [class^="_viewerBadge"], [class^="_chevronDownIcon"],
-[data-testid="appCreatorAvatar"], a[href*="streamlit.io/cloud"] {
+/* 上部ツールバーのFork/GitHubボタンとフッターを非表示 */
+[data-testid="stToolbarActions"], .stToolbarActionButton, footer,
+.stAppDeployButton, [data-testid="stAppDeployButton"], [class*="viewerBadge"] {
   display: none !important;
 }
 [data-testid="stMainBlockContainer"] { max-width: 640px; padding: 2.2rem 1rem 7rem; }
@@ -381,6 +379,20 @@ html, body, [class*="st-"] { font-family: 'Noto Sans JP', sans-serif; }
 }
 </style>
 """, unsafe_allow_html=True)
+
+# Streamlit Cloudがホストページ(親フレーム)に挿入する王冠バッジ/アバターを削除する。
+# 親フレームは同一オリジンなのでJSから操作できる（アプリ内CSSでは届かない）。
+components.html("""<script>
+const zap = () => {
+  try {
+    const doc = window.top.document;
+    doc.querySelectorAll('[class*="viewerBadge"], [class*="_profileContainer"], [class*="_container_gzau3"]')
+       .forEach(el => el.remove());
+  } catch (e) { /* ローカル実行などクロスオリジン時は何もしない */ }
+};
+zap();
+setInterval(zap, 1500);
+</script>""", height=0)
 
 # ---------------------------------------------------------------- 国データ
 COUNTRIES = {
