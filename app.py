@@ -16,7 +16,7 @@ from streamlit_cookies_controller import CookieController
 from streamlit_folium import st_folium
 from supabase import create_client
 
-st.set_page_config(page_title="たびログ | TabiLog", page_icon="🧭",
+st.set_page_config(page_title="Tabilogy | 期待と現実の旅ノート", page_icon="🧭",
                    layout="centered", initial_sidebar_state="collapsed")
 
 
@@ -59,7 +59,7 @@ elif _cookie_action:
 # ---------------------------------------------------------------- 多言語
 I18N = {
     "ja": {
-        "tagline": "「期待と現実」を記録する旅アプリ",
+        "tagline": "期待と現実を記録する、旅のドキュメンタリー",
         "tab_login": "ログイン", "tab_register": "新規登録",
         "user_id": "ユーザーID", "password": "パスワード",
         "login_btn": "ログイン", "login_err": "ユーザーIDまたはパスワードが違います",
@@ -73,7 +73,7 @@ I18N = {
         "language": "言語 / Language",
         "nav_map": "マップ", "nav_feed": "フィード", "nav_add": "投稿",
         "nav_update": "追記", "nav_profile": "プロフィール",
-        "hero_title": "たびログ", "hero_sub": "キラキラだけじゃない、リアルな旅の記録。<br>🟠 訪問済みの足跡　🔵 これからの旅 — ピンをタップすると「期待と現実」。",
+        "hero_title": "Tabilogy", "hero_sub": "キラキラだけじゃない、リアルな旅の記録。<br>🟠 訪問済みの足跡　🔵 これからの旅 — ピンをタップすると「期待と現実」。",
         "flt_my_visited": "🟠 行った", "flt_my_planned": "🔵 これから",
         "flt_fr_visited": "💜 友達が行った", "flt_fr_planned": "🩷 友達のこれから",
         "stat_countries": "訪問した国", "stat_cities": "訪問した都市",
@@ -145,7 +145,7 @@ I18N = {
         "delete": "🗑 削除",
         "confirm_del": "この投稿を完全に削除します（元に戻せません）",
         "confirm_del_btn": "完全に削除する",
-        "tut_title": "ようこそ、たびログへ！",
+        "tut_title": "ようこそ、Tabilogy へ！",
         "tut_sub": "「期待と現実」を記録する、3ステップの旅ノート",
         "tut_1": "<b>➕ 投稿</b>：旅の前に「期待していること」を登録（地図クリックか場所名検索で場所を選択）",
         "tut_2": "<b>🛬 追記</b>：帰ってきたら「実際どうだったか」・写真・評価を記録",
@@ -162,7 +162,7 @@ I18N = {
         "w_title": "{year}年のあなたの旅",
     },
     "en": {
-        "tagline": "A travel journal for expectations & reality",
+        "tagline": "A documentary of your trips — expectations & reality",
         "tab_login": "Log in", "tab_register": "Sign up",
         "user_id": "User ID", "password": "Password",
         "login_btn": "Log in", "login_err": "Wrong user ID or password",
@@ -176,7 +176,7 @@ I18N = {
         "language": "言語 / Language",
         "nav_map": "Map", "nav_feed": "Feed", "nav_add": "Post",
         "nav_update": "Reality", "nav_profile": "Profile",
-        "hero_title": "TabiLog", "hero_sub": "Real travel memories, not just the highlight reel.<br>🟠 Footprints of visited places 🔵 Upcoming trips — tap a pin to see expectation vs reality.",
+        "hero_title": "Tabilogy", "hero_sub": "Real travel memories, not just the highlight reel.<br>🟠 Footprints of visited places 🔵 Upcoming trips — tap a pin to see expectation vs reality.",
         "flt_my_visited": "🟠 My visited", "flt_my_planned": "🔵 My upcoming",
         "flt_fr_visited": "💜 Friends visited", "flt_fr_planned": "🩷 Friends upcoming",
         "stat_countries": "Countries visited", "stat_cities": "Cities visited",
@@ -248,7 +248,7 @@ I18N = {
         "delete": "🗑 Delete",
         "confirm_del": "This will permanently delete the post (can't be undone)",
         "confirm_del_btn": "Delete permanently",
-        "tut_title": "Welcome to TabiLog!",
+        "tut_title": "Welcome to Tabilogy!",
         "tut_sub": "A 3-step journal for expectations & reality",
         "tut_1": "<b>➕ Post</b>: before a trip, write down what you expect (pick the spot by clicking the map or searching)",
         "tut_2": "<b>🛬 Reality</b>: after the trip, record how it really was, with photos and ratings",
@@ -289,7 +289,7 @@ html, body, [class*="st-"] { font-family: 'Noto Sans JP', sans-serif; }
 .stAppDeployButton, [data-testid="stAppDeployButton"], [class*="viewerBadge"] {
   display: none !important;
 }
-[data-testid="stMainBlockContainer"] { max-width: 640px; padding: 2.2rem 1rem 7rem; }
+[data-testid="stMainBlockContainer"] { max-width: 640px; padding: 2.2rem 1rem 7.5rem; }
 
 .logo-grad { font-family: 'Zen Maru Gothic', sans-serif; font-weight: 900; background: linear-gradient(135deg, #ffb46a, #ff5e7e, #a07bff); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
 .hero { position: relative; overflow: hidden; background: linear-gradient(135deg, #ff9a5a 0%, #ff5e7e 45%, #8f5eff 100%); border-radius: 24px; padding: 1.7rem 1.5rem 1.5rem; margin-bottom: 1.2rem; color: #fff; box-shadow: 0 12px 36px rgba(255, 94, 126, .25); }
@@ -346,8 +346,16 @@ html, body, [class*="st-"] { font-family: 'Noto Sans JP', sans-serif; }
 .wrapped .best b { font-family: 'Zen Maru Gothic', sans-serif; font-size: 1.1rem; }
 .wrapped .logo { margin-top: 1rem; font-size: .7rem; letter-spacing: .3em; opacity: .7; text-transform: uppercase; }
 
-/* z-indexはStreamlit Cloudのバッジ類より前面にする */
-.st-key-bottomnav { position: fixed; bottom: 0; left: 50%; transform: translateX(-50%); width: min(100vw, 640px); z-index: 2147483000; background: rgba(14, 17, 23, .97); backdrop-filter: blur(14px); border: 1px solid rgba(150, 160, 200, .18); border-bottom: none; border-radius: 20px 20px 0 0; padding: .3rem .5rem calc(.4rem + env(safe-area-inset-bottom)); }
+/* フローティング型ナビ（少し浮かせてバッジ類とも干渉しない） */
+.st-key-bottomnav {
+  position: fixed; bottom: calc(14px + env(safe-area-inset-bottom));
+  left: 50%; transform: translateX(-50%);
+  width: min(94vw, 600px); z-index: 2147483000;
+  background: rgba(14, 17, 23, .97); backdrop-filter: blur(14px);
+  border: 1px solid rgba(150, 160, 200, .22);
+  border-radius: 24px; padding: .35rem .5rem;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, .45);
+}
 .st-key-bottomnav [data-testid="stHorizontalBlock"] { flex-wrap: nowrap !important; gap: .3rem; }
 .st-key-bottomnav [data-testid="stColumn"] { flex: 1 1 0 !important; min-width: 0 !important; width: auto !important; }
 .st-key-bottomnav button { background: transparent !important; border: none !important; padding: .25rem 0 !important; min-height: 2.6rem; }
@@ -370,7 +378,7 @@ html, body, [class*="st-"] { font-family: 'Noto Sans JP', sans-serif; }
   .stats.six { grid-template-columns: repeat(2, 1fr); }
   .hero-title { font-size: 1.7rem; }
   /* 固定ヘッダーの高さぶん上余白を確保（タイトルが隠れないように） */
-  [data-testid="stMainBlockContainer"] { padding: 4rem .9rem 7rem; }
+  [data-testid="stMainBlockContainer"] { padding: 4rem .9rem 7.5rem; }
   .st-key-bottomnav [data-testid="stColumn"],
   [class*="st-key-rxrow_"] [data-testid="stColumn"],
   [class*="st-key-ctlrow_"] [data-testid="stColumn"],
@@ -453,6 +461,7 @@ USER_DEFAULTS = {"avatar": None, "friends": [], "requests_in": [],
                  "default_visibility": "friends", "lang": "ja", "suggestions": []}
 
 
+@st.cache_data(ttl=20, show_spinner=False)
 def load_users():
     users = {}
     for r in sb.table("users").select("*").execute().data:
@@ -523,27 +532,39 @@ def _trip_to_row(t, owner=None):
     return row
 
 
+@st.cache_data(ttl=20, show_spinner=False)
 def load_trips(username):
     rows = sb.table("trips").select("*").eq("owner", username).execute().data
     return [_row_to_trip(r) for r in rows]
 
 
+@st.cache_data(ttl=20, show_spinner=False)
 def load_all_trips():
     """全ユーザーの投稿を (trip, owner_uid) で返す"""
     return [(_row_to_trip(r), r["owner"])
             for r in sb.table("trips").select("*").execute().data]
 
 
+def bust_cache():
+    """書き込み後にキャッシュを破棄して即時反映させる"""
+    load_users.clear()
+    load_trips.clear()
+    load_all_trips.clear()
+
+
 def db_insert_trip(t, owner):
     sb.table("trips").insert(_trip_to_row(t, owner)).execute()
+    bust_cache()
 
 
 def db_update_trip(t):
     sb.table("trips").update(_trip_to_row(t)).eq("id", t["id"]).execute()
+    bust_cache()
 
 
 def db_delete_trip(trip_id):
     sb.table("trips").delete().eq("id", trip_id).execute()
+    bust_cache()
 
 
 def effective_visibility(trip, owner):
@@ -572,6 +593,7 @@ def toggle_reaction(owner_uid, trip_id, key, me_uid):
     else:
         lst.append(me_uid)
     sb.table("trips").update({"reactions": rx}).eq("id", trip_id).execute()
+    bust_cache()
     if owner_uid == st.session_state.user:
         for t in st.session_state.trips:
             if t["id"] == trip_id:
@@ -630,6 +652,7 @@ def auth_gate():
                         "id": uid, "name": name, "salt": salt,
                         "pw": hash_pw(pw, salt), "lang": st.session_state.lang,
                     }).execute()
+                    bust_cache()
                     st.session_state.user = uid
                     st.session_state.cookie_action = uid
                     st.rerun()
@@ -1154,10 +1177,12 @@ elif page == "profile":
                         db_insert_trip(new_trip, USER_ID)
                         st.session_state.trips.append(new_trip)
                         sb.table("suggestions").delete().eq("id", s["id"]).execute()
+                        bust_cache()
                         st.success(tr("baton_added"))
                         st.rerun()
                     if c2.button(tr("baton_decline"), key=f"sug_ng_{s['id']}", use_container_width=True):
                         sb.table("suggestions").delete().eq("id", s["id"]).execute()
+                        bust_cache()
                         st.rerun()
             st.divider()
 
@@ -1178,9 +1203,11 @@ elif page == "profile":
                             {"user_a": USER_ID, "user_b": rid},
                             {"user_a": rid, "user_b": USER_ID},
                         ]).execute()
+                        bust_cache()
                         st.rerun()
                     if c3.button(tr("decline"), key=f"dec_{rid}", use_container_width=True):
                         sb.table("friend_requests").delete().eq("from_user", rid).eq("to_user", USER_ID).execute()
+                        bust_cache()
                         st.rerun()
             st.divider()
 
@@ -1203,6 +1230,7 @@ elif page == "profile":
                 else:
                     sb.table("friend_requests").insert(
                         {"from_user": USER_ID, "to_user": target_id}).execute()
+                    bust_cache()
                     st.success(tr("req_sent"))
 
         # フレンド一覧
@@ -1220,6 +1248,7 @@ elif page == "profile":
                 if c2.button(tr("remove"), key=f"rm_{fid}", use_container_width=True):
                     sb.table("friendships").delete().eq("user_a", USER_ID).eq("user_b", fid).execute()
                     sb.table("friendships").delete().eq("user_a", fid).eq("user_b", USER_ID).execute()
+                    bust_cache()
                     st.rerun()
 
         # 旅のバトンを送る
@@ -1248,6 +1277,7 @@ elif page == "profile":
                                 "place": b_place, "country": b_country, "city": b_city,
                                 "lat": hit[0], "lon": hit[1], "note": b_note or "",
                             }).execute()
+                            bust_cache()
                             st.success(tr("baton_sent"))
 
     with tab_wrapped:
@@ -1293,6 +1323,7 @@ elif page == "profile":
             if av is not None:
                 upd["avatar_url"] = upload_image(av.getvalue(), f"avatars/{USER_ID}.jpg")
             sb.table("users").update(upd).eq("id", USER_ID).execute()
+            bust_cache()
             st.session_state.lang = upd["lang"]
             st.success(tr("saved"))
             st.rerun()
