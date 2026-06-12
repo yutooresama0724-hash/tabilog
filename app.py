@@ -250,6 +250,8 @@ st.markdown("""
 html, body, [class*="st-"] { font-family: 'Noto Sans JP', sans-serif; }
 [data-testid="stIconMaterial"] { font-family: 'Material Symbols Rounded' !important; }
 [data-testid="stSidebar"], [data-testid="stSidebarCollapsedControl"] { display: none; }
+/* 固定ヘッダーを透過にしてコンテンツと干渉しないように */
+[data-testid="stHeader"] { background: transparent; }
 [data-testid="stMainBlockContainer"] { max-width: 640px; padding: 2.2rem 1rem 7rem; }
 
 .logo-grad { font-family: 'Zen Maru Gothic', sans-serif; font-weight: 900; background: linear-gradient(135deg, #ffb46a, #ff5e7e, #a07bff); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
@@ -329,7 +331,8 @@ html, body, [class*="st-"] { font-family: 'Noto Sans JP', sans-serif; }
   .stats { grid-template-columns: repeat(2, 1fr); }
   .stats.six { grid-template-columns: repeat(2, 1fr); }
   .hero-title { font-size: 1.7rem; }
-  [data-testid="stMainBlockContainer"] { padding: 1.5rem .9rem 7rem; }
+  /* 固定ヘッダーの高さぶん上余白を確保（タイトルが隠れないように） */
+  [data-testid="stMainBlockContainer"] { padding: 4rem .9rem 7rem; }
   .st-key-bottomnav [data-testid="stColumn"],
   [class*="st-key-rxrow_"] [data-testid="stColumn"],
   [class*="st-key-ctlrow_"] [data-testid="stColumn"],
